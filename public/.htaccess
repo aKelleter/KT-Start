@@ -1,0 +1,9 @@
+Options -Indexes
+RewriteEngine On
+
+# Laisser passer les fichiers et dossiers existants (assets, etc.)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Tout le reste → index.php
+RewriteRule ^ index.php [QSA,L]

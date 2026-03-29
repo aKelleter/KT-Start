@@ -1,0 +1,405 @@
+/* KT-Start — styles applicatifs (inspiré de KT-Drop, dominante bleue) */
+
+:root {
+    --app-bg:     #f5f5f7;
+    --app-card:   #ffffff;
+    --app-text:   #1d1d1f;
+    --app-muted:  #6e6e73;
+    --app-border: #e5e5ea;
+    --app-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+
+    --app-blue:      #2563eb;
+    --app-blue-hover:#1d4ed8;
+    --app-blue-soft: rgba(37, 99, 235, 0.10);
+
+    --app-red:      #d94b66;
+    --app-red-soft: rgba(217, 75, 102, 0.10);
+
+    --app-header-height: 72px;
+    --app-footer-height: 52px;
+}
+
+html, body { height: 100%; margin: 0; }
+
+body.app-body {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.07), transparent 22%),
+        radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.9), transparent 30%),
+        var(--app-bg);
+    background-attachment: fixed;
+    color: var(--app-text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.app-shell { min-height: 100vh; }
+
+.app-main {
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding-top:    calc(var(--app-header-height) + 1.25rem) !important;
+    padding-bottom: calc(var(--app-footer-height) + 1.25rem) !important;
+    background: transparent;
+}
+
+/* ── Navbar ──────────────────────────────────────────────────────────────── */
+.app-navbar-fixed {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 1030;
+}
+
+.app-navbar {
+    min-height: var(--app-header-height);
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--app-border);
+}
+
+.app-navbar .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.app-brand {
+    color: var(--app-text) !important;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+}
+
+.app-brand-icon {
+    font-size: 1.4rem;
+    color: var(--app-blue);
+}
+
+.app-user-email { color: var(--app-muted); }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.app-footer {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 1020;
+    min-height: var(--app-footer-height);
+    display: flex;
+    align-items: center;
+    padding: 0.4rem 0;
+    border-top: 1px solid var(--app-border);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--app-muted);
+    font-size: 0.88rem;
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────── */
+.app-card {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: 20px;
+}
+
+.shadow-soft { box-shadow: var(--app-shadow); }
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+.app-label {
+    color: var(--app-text);
+    font-weight: 500;
+}
+
+.app-input {
+    border: 1px solid var(--app-border);
+    background: #fff;
+    color: var(--app-text);
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    box-shadow: none;
+}
+
+.app-input:focus {
+    border-color: rgba(37, 99, 235, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.15);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-blue {
+    background: var(--app-blue-soft);
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    color: var(--app-blue);
+    border-radius: 14px;
+    padding: 0.8rem 1rem;
+    font-weight: 600;
+}
+
+.btn-blue:hover,
+.btn-blue:focus {
+    background: rgba(37, 99, 235, 0.16);
+    border-color: rgba(37, 99, 235, 0.42);
+    color: var(--app-blue-hover);
+    box-shadow: none;
+}
+
+.btn-outline-blue {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: var(--app-blue);
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    border-radius: 999px;
+    padding: 0.45rem 1rem;
+    font-weight: 500;
+    text-decoration: none;
+    line-height: 1.2;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.btn-outline-blue:hover,
+.btn-outline-blue:focus {
+    background: var(--app-blue-soft);
+    color: var(--app-blue-hover);
+    border-color: rgba(37, 99, 235, 0.5);
+    box-shadow: none;
+    text-decoration: none;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+.alert {
+    border-radius: 16px;
+    border: 1px solid transparent;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.alert-success {
+    background: #edf9f1;
+    border-color: #b7e4c7;
+    color: #1f6f43;
+}
+
+.alert-danger {
+    background: #fff2f0;
+    border-color: #f5c2c0;
+    color: #a33a32;
+}
+
+.flash-hide {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+
+/* ── Onglets listes ──────────────────────────────────────────────────────── */
+.ks-list-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: .3rem;
+    padding-bottom: .5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-border) transparent;
+}
+
+.ks-list-tabs::-webkit-scrollbar { height: 4px; }
+.ks-list-tabs::-webkit-scrollbar-thumb { background: var(--app-border); border-radius: 2px; }
+
+.ks-list-tab {
+    display: inline-block;
+    padding: .28rem .8rem;
+    border-radius: 999px;
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    color: var(--app-muted);
+    text-decoration: none;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .15s, color .15s, border-color .15s;
+}
+
+.ks-list-tab:hover  { background: #e9ecef; color: var(--app-text); }
+
+.ks-list-tab.active {
+    background: var(--app-blue);
+    color: #fff;
+    border-color: var(--app-blue);
+}
+
+/* ── Vue Badges ──────────────────────────────────────────────────────────── */
+.ks-badges-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.ks-badge {
+    width: 130px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,.10);
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.ks-badge:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.18);
+    border-color: rgba(37, 99, 235, 0.35);
+}
+
+.ks-badge-link { display: block; text-decoration: none; }
+
+.ks-badge-thumb {
+    height: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: .5rem;
+}
+
+.ks-badge-thumb span {
+    color: #fff;
+    font-size: .73rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.3;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ks-badge-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .32rem .5rem;
+    background: #f8f9fa;
+    border-top: 1px solid var(--app-border);
+    gap: .25rem;
+}
+
+.ks-badge-host {
+    color: var(--app-muted);
+    font-size: .68rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.ks-badge-edit { color: var(--app-muted) !important; line-height: 1; font-size: .82rem; }
+.ks-badge-edit:hover { color: var(--app-blue) !important; }
+
+/* ── Vue Tableau ─────────────────────────────────────────────────────────── */
+.ks-table-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+/* ── Vue Liste compacte ──────────────────────────────────────────────────── */
+.ks-compact-list { display: flex; flex-direction: column; gap: .3rem; }
+
+.ks-compact-item {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: .45rem .85rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.ks-compact-item:hover {
+    border-color: rgba(37, 99, 235, 0.3);
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.08);
+}
+
+.ks-compact-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ks-compact-title { flex-shrink: 0; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .9rem; }
+.ks-compact-host  { flex-shrink: 0; font-size: .8rem; }
+.ks-compact-tags  { display: flex; flex-wrap: wrap; gap: .2rem; flex: 1; }
+.ks-compact-edit  { flex-shrink: 0; opacity: .35; transition: opacity .15s; }
+.ks-compact-edit:hover { opacity: 1; }
+
+/* ── Badge style picker ──────────────────────────────────────────────────── */
+.ks-color-swatch { cursor: pointer; }
+
+.ks-color-dot {
+    display: block;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    transition: transform .12s, border-color .12s, box-shadow .12s;
+}
+
+.ks-color-swatch:hover .ks-color-dot { transform: scale(1.15); }
+
+.ks-color-swatch.selected .ks-color-dot {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px var(--app-blue);
+    transform: scale(1.18);
+}
+
+/* ── Back to top ─────────────────────────────────────────────────────────── */
+.back-to-top {
+    position: fixed;
+    bottom: calc(var(--app-footer-height) + 14px);
+    right: 20px;
+    z-index: 1025;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--app-border);
+    background: rgba(255,255,255,.85);
+    backdrop-filter: blur(8px);
+    color: var(--app-blue);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s, transform .25s;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,.10);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.back-to-top:hover {
+    background: var(--app-blue);
+    color: #fff;
+    border-color: var(--app-blue);
+    transform: translateY(-2px);
+}
+
+/* ── Login ───────────────────────────────────────────────────────────────── */
+.app-login-wrap {
+    min-height: calc(100vh - var(--app-header-height) - var(--app-footer-height));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 575px) {
+    .ks-badge     { width: calc(50% - .4rem); }
+    .ks-compact-title { max-width: 140px; }
+    .ks-compact-host  { display: none; }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+    .ks-badge { width: calc(33.33% - .5rem); }
+}

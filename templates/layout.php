@@ -43,6 +43,11 @@ $appUpdate  = Config::get('APP_UPDATE', '');
                     <span class="small app-user-email d-none d-md-inline">
                         <?= View::e(Auth::user()['email'] ?? '') ?>
                     </span>
+                    <?php if (Auth::isAdmin()): ?>
+                    <a href="?action=admin" class="btn btn-outline-blue btn-sm d-none d-md-inline-flex">
+                        <i class="bi bi-gear me-1"></i>Admin
+                    </a>
+                    <?php endif; ?>
                     <a href="?action=logout" class="btn btn-outline-blue btn-sm">
                         <i class="bi bi-box-arrow-right me-1"></i>Déconnexion
                     </a>
@@ -65,8 +70,8 @@ $appUpdate  = Config::get('APP_UPDATE', '');
     <!-- ── Footer ──────────────────────────────────────────────────────── -->
     <footer class="app-footer">
         <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span><?= View::e((string) $appName) ?> v<?= View::e((string) $appVersion) ?></span>
-            <span><?= View::e((string) $appUpdate) ?></span>
+            <span><?= View::e((string) $appName) ?></span>
+            <span>v<?= View::e((string) $appVersion) ?> - <?= View::e((string) $appUpdate) ?></span>
             <a href="https://github.com/aKelleter/KT-Start" target="_blank" rel="noopener noreferrer"
                class="text-secondary" title="GitHub">
                 <i class="bi bi-github fs-5"></i>

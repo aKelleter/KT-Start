@@ -34,7 +34,7 @@ final class Router
         }
 
         if (($route['public'] ?? false) === false && !Auth::check()) {
-            Response::redirect('?action=login');
+            Response::redirect('?action=home');
         }
 
         $handler = $route['handler'];

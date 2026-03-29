@@ -14,6 +14,11 @@ use App\Service\UrlMetaService;
 
 final class BookmarkController
 {
+    private static function perPage(): int
+    {
+        return max(1, (int) ($_ENV['BOOKMARKS_PER_PAGE'] ?? 24));
+    }
+
     public function home(): void
     {
         if (Auth::check()) {
@@ -23,24 +28,29 @@ final class BookmarkController
         $listId = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
+        $search = trim($_GET['q'] ?? '');
         $view   = in_array($_GET['view'] ?? '', ['badges', 'table', 'list'], true)
-                    ? $_GET['view']
-                    : 'badges';
+                    ? $_GET['view'] : 'badges';
 
-        $listRepo     = new ListRepository();
         $bookmarkRepo = new BookmarkRepository();
+        $total        = $bookmarkRepo->countPublic($listId, $tag ?: null, $search ?: null);
+        [$page, $totalPages, $offset] = $this->paginate($total);
 
         View::render('bookmarks/index', [
-            'lists'     => $listRepo->findAll(),
-            'bookmarks' => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort),
-            'allTags'   => [],
-            'listId'    => $listId,
-            'tag'       => $tag,
-            'sort'      => $sort,
-            'view'      => $view,
-            'csrf'      => '',
-            'flash'     => null,
-            'readOnly'  => true,
+            'lists'      => (new ListRepository())->findAll(),
+            'bookmarks'  => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort, $search ?: null, self::perPage(), $offset),
+            'allTags'    => [],
+            'listId'     => $listId,
+            'tag'        => $tag,
+            'sort'       => $sort,
+            'search'     => $search,
+            'view'       => $view,
+            'page'       => $page,
+            'totalPages' => $totalPages,
+            'total'      => $total,
+            'csrf'       => '',
+            'flash'      => null,
+            'readOnly'   => true,
         ]);
     }
 
@@ -50,23 +60,28 @@ final class BookmarkController
         $listId = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
+        $search = trim($_GET['q'] ?? '');
         $view   = in_array($_GET['view'] ?? '', ['badges', 'table', 'list'], true)
-                    ? $_GET['view']
-                    : 'badges';
+                    ? $_GET['view'] : 'badges';
 
-        $listRepo     = new ListRepository();
         $bookmarkRepo = new BookmarkRepository();
+        $total        = $bookmarkRepo->countFiltered($userId, $listId, $tag ?: null, $search ?: null);
+        [$page, $totalPages, $offset] = $this->paginate($total);
 
         View::render('bookmarks/index', [
-            'lists'     => $listRepo->findAll(),
-            'bookmarks' => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort),
-            'allTags'   => $bookmarkRepo->getAllTags($userId),
-            'listId'    => $listId,
-            'tag'       => $tag,
-            'sort'      => $sort,
-            'view'      => $view,
-            'csrf'      => Csrf::token(),
-            'flash'     => Flash::get(),
+            'lists'      => (new ListRepository())->findAll(),
+            'bookmarks'  => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort, $search ?: null, self::perPage(), $offset),
+            'allTags'    => $bookmarkRepo->getAllTags($userId),
+            'listId'     => $listId,
+            'tag'        => $tag,
+            'sort'       => $sort,
+            'search'     => $search,
+            'view'       => $view,
+            'page'       => $page,
+            'totalPages' => $totalPages,
+            'total'      => $total,
+            'csrf'       => Csrf::token(),
+            'flash'      => Flash::get(),
         ]);
     }
 
@@ -162,6 +177,31 @@ final class BookmarkController
         Response::redirect($this->buildRedirectUrl());
     }
 
+    public function reorder(): void
+    {
+        header('Content-Type: application/json');
+
+        $body = (array) json_decode(file_get_contents('php://input'), true);
+
+        if (!Csrf::validate($body['_csrf'] ?? null)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return;
+        }
+
+        $ids = $body['ids'] ?? [];
+        if (!is_array($ids) || empty($ids)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'ids manquants']);
+            return;
+        }
+
+        $repo = new BookmarkRepository();
+        $repo->reorder((int) Auth::id(), $ids);
+
+        echo json_encode(['ok' => true]);
+    }
+
     public function fetchMeta(): void
     {
         header('Content-Type: application/json');
@@ -177,6 +217,15 @@ final class BookmarkController
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** @return array{int, int, int} [page, totalPages, offset] */
+    private function paginate(int $total): array
+    {
+        $totalPages = max(1, (int) ceil($total / self::perPage()));
+        $page       = max(1, min($totalPages, (int) ($_GET['page'] ?? 1)));
+        $offset     = ($page - 1) * self::perPage();
+        return [$page, $totalPages, $offset];
+    }
 
     private function resolveListId(): ?int
     {

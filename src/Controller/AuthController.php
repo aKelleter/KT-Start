@@ -40,6 +40,6 @@ final class AuthController
     public function logout(): void
     {
         Auth::logout();
-        Response::redirect('?action=login');
+        Response::redirect('?action=home');
     }
 }

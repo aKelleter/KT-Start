@@ -62,6 +62,7 @@ if (!file_exists($_basePath . '/' . $_dbRelPath)) {
 unset($_basePath, $_dbRelPath);
 // ── End pre-flight ────────────────────────────────────────────────────────────
 
+use App\Controller\AdminController;
 use App\Controller\AuthController;
 use App\Controller\BookmarkController;
 use App\Core\Router;
@@ -77,7 +78,17 @@ $router->get('bookmarks',          [BookmarkController::class, 'index']);
 $router->post('bookmark_store',    [BookmarkController::class, 'store']);
 $router->post('bookmark_update',   [BookmarkController::class, 'update']);
 $router->post('bookmark_delete',   [BookmarkController::class, 'delete']);
-$router->get('bookmark_fetch_meta', [BookmarkController::class, 'fetchMeta']);
+$router->get('bookmark_fetch_meta',  [BookmarkController::class, 'fetchMeta']);
+$router->post('bookmark_reorder',    [BookmarkController::class, 'reorder']);
+
+$router->get('admin',               [AdminController::class, 'index']);
+$router->post('admin_user_store',   [AdminController::class, 'userStore']);
+$router->post('admin_user_update',  [AdminController::class, 'userUpdate']);
+$router->post('admin_user_delete',  [AdminController::class, 'userDelete']);
+$router->post('admin_list_store',   [AdminController::class, 'listStore']);
+$router->post('admin_list_rename',  [AdminController::class, 'listRename']);
+$router->post('admin_list_delete',   [AdminController::class, 'listDelete']);
+$router->post('admin_run_migration', [AdminController::class, 'runMigration']);
 
 $action = $_GET['action'] ?? 'home';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

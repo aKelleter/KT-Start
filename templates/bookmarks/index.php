@@ -6,6 +6,10 @@ use App\Core\View;
 // ── URL helper ────────────────────────────────────────────────────────────────
 $readOnly = $readOnly ?? false;
 $baseAction = $readOnly ? 'home' : 'bookmarks';
+$search     = $search ?? '';
+$page       = $page ?? 1;
+$totalPages = $totalPages ?? 1;
+$total      = $total ?? count($bookmarks);
 
 $q = fn(array $overrides = []): string => '?' . http_build_query(array_merge(
     array_filter([
@@ -14,9 +18,21 @@ $q = fn(array $overrides = []): string => '?' . http_build_query(array_merge(
         'tag'    => $tag ?: null,
         'sort'   => $sort !== 'position' ? $sort : null,
         'view'   => $view !== 'badges' ? $view : null,
+        'q'      => $search ?: null,
+        'page'   => $page > 1 ? $page : null,
     ], fn($v) => $v !== null && $v !== ''),
     $overrides
 ));
+
+// Plage de numéros de page à afficher autour de la page courante
+$pageRange = function(int $current, int $total, int $delta = 2): array {
+    $range = range(max(1, $current - $delta), min($total, $current + $delta));
+    if (($range[0] ?? 1) > 2)     array_unshift($range, '…');
+    if (($range[0] ?? 1) > 1)     array_unshift($range, 1);
+    if (end($range) < $total - 1) $range[] = '…';
+    if (end($range) < $total)     $range[] = $total;
+    return $range;
+};
 
 $badgeStyles = BadgeStyles::all();
 ?>
@@ -30,10 +46,10 @@ $badgeStyles = BadgeStyles::all();
 
 <!-- ── Onglets listes ─────────────────────────────────────────────────────── -->
 <div class="ks-list-tabs mb-2">
-    <a href="<?= $q(['list' => null, 'tag' => null]) ?>"
+    <a href="<?= $q(['list' => null, 'tag' => null, 'page' => null]) ?>"
        class="ks-list-tab<?= $listId === null ? ' active' : '' ?>">ALL</a>
     <?php foreach ($lists as $l): ?>
-        <a href="<?= $q(['list' => $l['id'], 'tag' => null]) ?>"
+        <a href="<?= $q(['list' => $l['id'], 'tag' => null, 'page' => null]) ?>"
            class="ks-list-tab<?= $listId === (int) $l['id'] ? ' active' : '' ?>">
             <?= View::e($l['name']) ?>
         </a>
@@ -45,13 +61,13 @@ $badgeStyles = BadgeStyles::all();
 
     <!-- Switcher de vue -->
     <div class="btn-group btn-group-sm">
-        <a href="<?= $q(['view' => 'badges']) ?>"
+        <a href="<?= $q(['view' => 'badges', 'page' => null]) ?>"
            class="btn btn-outline-secondary<?= $view === 'badges' ? ' active' : '' ?>"
            title="Vue Badges"><i class="bi bi-grid-3x3-gap-fill"></i></a>
-        <a href="<?= $q(['view' => 'table']) ?>"
+        <a href="<?= $q(['view' => 'table', 'page' => null]) ?>"
            class="btn btn-outline-secondary<?= $view === 'table' ? ' active' : '' ?>"
            title="Vue Tableau"><i class="bi bi-table"></i></a>
-        <a href="<?= $q(['view' => 'list']) ?>"
+        <a href="<?= $q(['view' => 'list', 'page' => null]) ?>"
            class="btn btn-outline-secondary<?= $view === 'list' ? ' active' : '' ?>"
            title="Vue Liste"><i class="bi bi-list-ul"></i></a>
     </div>
@@ -71,7 +87,7 @@ $badgeStyles = BadgeStyles::all();
             ] as $key => $label): ?>
                 <li>
                     <a class="dropdown-item<?= $sort === $key ? ' active' : '' ?>"
-                       href="<?= $q(['sort' => $key]) ?>">
+                       href="<?= $q(['sort' => $key, 'page' => null]) ?>">
                         <?= $label ?>
                     </a>
                 </li>
@@ -94,7 +110,7 @@ $badgeStyles = BadgeStyles::all();
             <?php foreach ($allTags as $t): ?>
                 <li>
                     <a class="dropdown-item<?= $tag === $t ? ' active' : '' ?>"
-                       href="<?= $q(['tag' => $t]) ?>">
+                       href="<?= $q(['tag' => $t, 'page' => null]) ?>">
                         <?= View::e($t) ?>
                     </a>
                 </li>
@@ -103,8 +119,45 @@ $badgeStyles = BadgeStyles::all();
     </div>
     <?php endif; ?>
 
+    <!-- Taille des badges (vue badges uniquement) -->
+    <?php if ($view === 'badges'): ?>
+    <div class="btn-group btn-group-sm">
+        <button id="btnBadgeSmaller" class="btn btn-outline-secondary" title="Réduire les badges">
+            <i class="bi bi-dash-lg"></i>
+        </button>
+        <span class="btn btn-outline-secondary pe-none" id="badgeSizeLabel"
+              style="min-width:2.4rem;cursor:default"></span>
+        <button id="btnBadgeLarger" class="btn btn-outline-secondary" title="Agrandir les badges">
+            <i class="bi bi-plus-lg"></i>
+        </button>
+    </div>
+    <?php endif; ?>
+
+    <!-- Recherche -->
+    <form class="ks-search-form" method="get">
+        <input type="hidden" name="action" value="<?= $baseAction ?>">
+        <?php if ($listId !== null): ?><input type="hidden" name="list" value="<?= $listId ?>"><?php endif; ?>
+        <?php if ($view !== 'badges'): ?><input type="hidden" name="view" value="<?= View::e($view) ?>"><?php endif; ?>
+        <?php if ($sort !== 'position'): ?><input type="hidden" name="sort" value="<?= View::e($sort) ?>"><?php endif; ?>
+        <?php if ($tag): ?><input type="hidden" name="tag" value="<?= View::e($tag) ?>"><?php endif; ?>
+        <div class="ks-search-wrap">
+            <i class="bi bi-search ks-search-icon"></i>
+            <input type="search" name="q" class="ks-search-input<?= $search ? ' active' : '' ?>"
+                   placeholder="Rechercher…" value="<?= View::e($search) ?>"
+                   autocomplete="off">
+        </div>
+    </form>
+
     <!-- Compteur -->
+    <?php if ($search): ?>
+    <span class="text-muted small ms-1">
+        <?= count($bookmarks) ?> résultat<?= count($bookmarks) > 1 ? 's' : '' ?> pour
+        <em>«&nbsp;<?= View::e($search) ?>&nbsp;»</em>
+        — <a href="<?= $q(['q' => null]) ?>" class="text-muted">effacer</a>
+    </span>
+    <?php else: ?>
     <span class="text-muted small ms-1"><?= count($bookmarks) ?> favori<?= count($bookmarks) > 1 ? 's' : '' ?></span>
+    <?php endif; ?>
 
     <?php if (!$readOnly): ?>
     <button class="btn btn-sm btn-primary ms-auto"
@@ -123,14 +176,17 @@ $badgeStyles = BadgeStyles::all();
         <p class="text-muted">Aucun favori.</p>
     <?php endif; ?>
     <?php foreach ($bookmarks as $bm): ?>
-        <?php $bg = BadgeStyles::bg($bm['badge_style']); ?>
-        <div class="ks-badge">
+        <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
+        <div class="ks-badge" data-id="<?= $bm['id'] ?>">
             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
                 <div class="ks-badge-thumb" style="background:<?= $bg ?>">
                     <span><?= View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>
                 </div>
             </a>
             <div class="ks-badge-footer">
+                <?php if (!$readOnly && $sort === 'position'): ?>
+                <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                <?php endif; ?>
                 <span class="ks-badge-host"><?= View::e($bm['host']) ?></span>
                 <?php if (!$readOnly): ?>
                 <button class="ks-badge-edit btn btn-link p-0"
@@ -174,12 +230,17 @@ $badgeStyles = BadgeStyles::all();
             <tr><td colspan="6" class="text-muted text-center py-3">Aucun favori.</td></tr>
         <?php endif; ?>
         <?php foreach ($bookmarks as $bm): ?>
-            <?php $bg = BadgeStyles::bg($bm['badge_style']); ?>
-            <tr>
+            <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
+            <tr data-id="<?= $bm['id'] ?>">
                 <td>
-                    <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener">
-                        <div class="ks-table-thumb" style="background:<?= $bg ?>"></div>
-                    </a>
+                    <div class="d-flex align-items-center gap-1">
+                        <?php if (!$readOnly && $sort === 'position'): ?>
+                        <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                        <?php endif; ?>
+                        <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener">
+                            <div class="ks-table-thumb" style="background:<?= $bg ?>"></div>
+                        </a>
+                    </div>
                 </td>
                 <td>
                     <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
@@ -237,8 +298,11 @@ $badgeStyles = BadgeStyles::all();
         <p class="text-muted">Aucun favori.</p>
     <?php endif; ?>
     <?php foreach ($bookmarks as $bm): ?>
-        <?php $bg = BadgeStyles::bg($bm['badge_style']); ?>
-        <div class="ks-compact-item">
+        <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
+        <div class="ks-compact-item" data-id="<?= $bm['id'] ?>">
+            <?php if (!$readOnly && $sort === 'position'): ?>
+            <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+            <?php endif; ?>
             <div class="ks-compact-dot" style="background:<?= $bg ?>"></div>
             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
                class="ks-compact-title text-decoration-none text-body fw-semibold">
@@ -276,9 +340,33 @@ $badgeStyles = BadgeStyles::all();
 
 <?php endif; ?>
 
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+<?php if ($totalPages > 1): ?>
+<nav class="ks-pagination" aria-label="Pagination">
+    <a class="ks-page-btn<?= $page <= 1 ? ' disabled' : '' ?>"
+       href="<?= $page > 1 ? $q(['page' => $page - 1]) : '#' ?>">
+        <i class="bi bi-chevron-left"></i>
+    </a>
+
+    <?php foreach ($pageRange($page, $totalPages) as $p): ?>
+        <?php if ($p === '…'): ?>
+            <span class="ks-page-ellipsis">…</span>
+        <?php else: ?>
+            <a class="ks-page-btn<?= $p === $page ? ' active' : '' ?>"
+               href="<?= $q(['page' => $p]) ?>"><?= $p ?></a>
+        <?php endif; ?>
+    <?php endforeach; ?>
+
+    <a class="ks-page-btn<?= $page >= $totalPages ? ' disabled' : '' ?>"
+       href="<?= $page < $totalPages ? $q(['page' => $page + 1]) : '#' ?>">
+        <i class="bi bi-chevron-right"></i>
+    </a>
+</nav>
+<?php endif; ?>
+
 <?php if (!$readOnly): ?>
 <!-- ── Modal Ajout / Édition ─────────────────────────────────────────────── -->
-<div class="modal fade" id="bookmarkModal" tabindex="-1">
+<div class="modal fade ks-modal" id="bookmarkModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -499,6 +587,82 @@ $badgeStyles = BadgeStyles::all();
     document.querySelectorAll('.ks-badge-style-radio').forEach(radio => {
         radio.addEventListener('change', () => selectBadgeStyle(radio.value));
     });
+})();
+</script>
+
+<?php if ($sort === 'position'): ?>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<script>
+(function () {
+    const csrf = <?= json_encode($csrf) ?>;
+
+    async function saveOrder(ids) {
+        try {
+            await fetch('?action=bookmark_reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _csrf: csrf, ids }),
+            });
+        } catch (e) {
+            console.error('Erreur sauvegarde ordre :', e);
+        }
+    }
+
+    function makeSortable(el, childSelector) {
+        if (!el) return;
+        new Sortable(el, {
+            handle: '.ks-drag-handle',
+            animation: 150,
+            ghostClass: 'ks-sortable-ghost',
+            chosenClass: 'ks-sortable-chosen',
+            onEnd() {
+                const ids = [...el.querySelectorAll(childSelector)]
+                    .map(item => parseInt(item.dataset.id, 10))
+                    .filter(Boolean);
+                saveOrder(ids);
+            },
+        });
+    }
+
+    makeSortable(document.querySelector('.ks-badges-grid'),  '.ks-badge');
+    makeSortable(document.querySelector('.ks-compact-list'), '.ks-compact-item');
+    makeSortable(document.querySelector('table tbody'),      'tr');
+})();
+</script>
+<?php endif; ?>
+
+<?php endif; ?>
+
+<?php if ($view === 'badges'): ?>
+<script>
+(function () {
+    const SIZES  = [80, 105, 130, 160, 195, 230];
+    const LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+    const KEY    = 'ks-badge-size';
+
+    const grid       = document.querySelector('.ks-badges-grid');
+    const btnSmaller = document.getElementById('btnBadgeSmaller');
+    const btnLarger  = document.getElementById('btnBadgeLarger');
+    const label      = document.getElementById('badgeSizeLabel');
+
+    const saved = parseInt(localStorage.getItem(KEY) || '160', 10);
+    let idx = SIZES.indexOf(saved);
+    if (idx === -1) idx = SIZES.findIndex(s => s >= saved) ?? 2;
+    idx = Math.max(0, Math.min(SIZES.length - 1, idx));
+
+    function apply() {
+        const size = SIZES[idx];
+        grid.style.setProperty('--ks-badge-width', size + 'px');
+        label.textContent        = LABELS[idx];
+        btnSmaller.disabled      = idx === 0;
+        btnLarger.disabled       = idx === SIZES.length - 1;
+        localStorage.setItem(KEY, size);
+    }
+
+    btnSmaller.addEventListener('click', () => { if (idx > 0)               { idx--; apply(); } });
+    btnLarger.addEventListener ('click', () => { if (idx < SIZES.length - 1) { idx++; apply(); } });
+
+    apply();
 })();
 </script>
 <?php endif; ?>

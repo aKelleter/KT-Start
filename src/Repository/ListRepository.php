@@ -41,6 +41,27 @@ final class ListRepository
         return (int) Database::connection()->lastInsertId();
     }
 
+    public function rename(int $id, string $name): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE lists SET name = :name WHERE id = :id'
+        );
+        $stmt->execute(['name' => $name, 'id' => $id]);
+    }
+
+    public function findAllWithCount(): array
+    {
+        return Database::connection()
+            ->query('
+                SELECT l.*, COUNT(b.id) AS bookmark_count
+                FROM lists l
+                LEFT JOIN bookmarks b ON b.list_id = l.id
+                GROUP BY l.id
+                ORDER BY l.name ASC
+            ')
+            ->fetchAll();
+    }
+
     public function delete(int $id): void
     {
         $stmt = Database::connection()->prepare('DELETE FROM lists WHERE id = :id');

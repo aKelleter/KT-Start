@@ -7,7 +7,10 @@ use App\Core\Database;
 
 final class BookmarkRepository
 {
-    public function findPublic(?int $listId, ?string $tag, string $sort): array
+    // ── Helpers WHERE ─────────────────────────────────────────────────────────
+
+    /** @return array{array<string>, array<string, mixed>} */
+    private function publicWhere(?int $listId, ?string $tag, ?string $search): array
     {
         $where  = ["b.visibility = 'public'"];
         $params = [];
@@ -16,68 +19,120 @@ final class BookmarkRepository
             $where[]           = 'b.list_id = :list_id';
             $params['list_id'] = $listId;
         }
-
         if ($tag !== null && $tag !== '') {
             $where[]       = "(',' || b.tags || ',' LIKE :tag)";
             $params['tag'] = '%,' . $tag . ',%';
         }
+        if ($search !== null && $search !== '') {
+            $where[]     = '(b.title LIKE :q OR b.host LIKE :q OR b.url LIKE :q OR b.description LIKE :q OR b.tags LIKE :q OR b.badge_text LIKE :q)';
+            $params['q'] = '%' . $search . '%';
+        }
 
-        $orderBy = match ($sort) {
-            'title'     => 'LOWER(b.title) ASC',
-            'host'      => 'LOWER(b.host) ASC',
-            'date_asc'  => 'b.created_at ASC',
-            'date_desc' => 'b.created_at DESC',
-            default     => 'b.position ASC, b.created_at DESC',
-        };
-
-        $sql = "
-            SELECT b.*, l.name AS list_name
-            FROM bookmarks b
-            LEFT JOIN lists l ON l.id = b.list_id
-            WHERE " . implode(' AND ', $where) . "
-            ORDER BY $orderBy
-        ";
-
-        $stmt = Database::connection()->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        return [$where, $params];
     }
 
-    public function findFiltered(int $userId, ?int $listId, ?string $tag, string $sort): array
+    /** @return array{array<string>, array<string, mixed>} */
+    private function filteredWhere(int $userId, ?int $listId, ?string $tag, ?string $search): array
     {
         $where  = ['b.user_id = :user_id'];
         $params = ['user_id' => $userId];
 
         if ($listId !== null) {
-            $where[]          = 'b.list_id = :list_id';
+            $where[]           = 'b.list_id = :list_id';
             $params['list_id'] = $listId;
         }
-
         if ($tag !== null && $tag !== '') {
-            $where[]    = "(',' || b.tags || ',' LIKE :tag)";
+            $where[]       = "(',' || b.tags || ',' LIKE :tag)";
             $params['tag'] = '%,' . $tag . ',%';
         }
+        if ($search !== null && $search !== '') {
+            $where[]     = '(b.title LIKE :q OR b.host LIKE :q OR b.url LIKE :q OR b.description LIKE :q OR b.tags LIKE :q OR b.badge_text LIKE :q)';
+            $params['q'] = '%' . $search . '%';
+        }
 
-        $orderBy = match ($sort) {
+        return [$where, $params];
+    }
+
+    private function orderBy(string $sort): string
+    {
+        return match ($sort) {
             'title'     => 'LOWER(b.title) ASC',
             'host'      => 'LOWER(b.host) ASC',
             'date_asc'  => 'b.created_at ASC',
             'date_desc' => 'b.created_at DESC',
             default     => 'b.position ASC, b.created_at DESC',
         };
+    }
 
+    // ── Lecture publique ──────────────────────────────────────────────────────
+
+    public function findPublic(
+        ?int $listId, ?string $tag, string $sort, ?string $search = null,
+        int $limit = 0, int $offset = 0
+    ): array {
+        [$where, $params] = $this->publicWhere($listId, $tag, $search);
+
+        $limitSql = $limit > 0 ? "LIMIT $limit OFFSET $offset" : '';
         $sql = "
             SELECT b.*, l.name AS list_name
             FROM bookmarks b
             LEFT JOIN lists l ON l.id = b.list_id
             WHERE " . implode(' AND ', $where) . "
-            ORDER BY $orderBy
+            ORDER BY {$this->orderBy($sort)}
+            $limitSql
         ";
 
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
+
+    public function countPublic(?int $listId, ?string $tag, ?string $search = null): int
+    {
+        [$where, $params] = $this->publicWhere($listId, $tag, $search);
+
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM bookmarks b WHERE ' . implode(' AND ', $where)
+        );
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    // ── Lecture filtrée (connecté) ────────────────────────────────────────────
+
+    public function findFiltered(
+        int $userId, ?int $listId, ?string $tag, string $sort, ?string $search = null,
+        int $limit = 0, int $offset = 0
+    ): array {
+        [$where, $params] = $this->filteredWhere($userId, $listId, $tag, $search);
+
+        $limitSql = $limit > 0 ? "LIMIT $limit OFFSET $offset" : '';
+        $sql = "
+            SELECT b.*, l.name AS list_name
+            FROM bookmarks b
+            LEFT JOIN lists l ON l.id = b.list_id
+            WHERE " . implode(' AND ', $where) . "
+            ORDER BY {$this->orderBy($sort)}
+            $limitSql
+        ";
+
+        $stmt = Database::connection()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public function countFiltered(int $userId, ?int $listId, ?string $tag, ?string $search = null): int
+    {
+        [$where, $params] = $this->filteredWhere($userId, $listId, $tag, $search);
+
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM bookmarks b WHERE ' . implode(' AND ', $where)
+        );
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    // ── CRUD ──────────────────────────────────────────────────────────────────
 
     public function findById(int $id): array|false
     {
@@ -104,7 +159,7 @@ final class BookmarkRepository
 
     public function update(int $id, array $data): void
     {
-        $sets      = implode(', ', array_map(fn($k) => "$k = :$k", array_keys($data)));
+        $sets       = implode(', ', array_map(fn($k) => "$k = :$k", array_keys($data)));
         $data['id'] = $id;
 
         $stmt = Database::connection()->prepare(
@@ -118,6 +173,18 @@ final class BookmarkRepository
         $stmt = Database::connection()->prepare('DELETE FROM bookmarks WHERE id = :id');
         $stmt->execute(['id' => $id]);
     }
+
+    public function reorder(int $userId, array $ids): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET position = :pos WHERE id = :id AND user_id = :uid'
+        );
+        foreach ($ids as $pos => $id) {
+            $stmt->execute(['pos' => $pos, 'id' => (int) $id, 'uid' => $userId]);
+        }
+    }
+
+    // ── Tags ──────────────────────────────────────────────────────────────────
 
     /** @return string[] */
     public function getAllTags(int $userId): array

@@ -32,7 +32,9 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 ### Listes
 - Organisation des favoris en listes personnalisées
 - Création d'une nouvelle liste directement depuis le formulaire d'ajout
-- Filtrage par liste via les onglets de navigation
+- **Liste par défaut** configurable — affichée automatiquement à l'ouverture (connecté ou non)
+- Filtrage par liste via un **dropdown avec recherche live** dans la barre d'outils
+- Sélection de liste dans les modaux ajout/édition via un dropdown searchable
 
 ### Tags
 - Tags multiples séparés par virgule sur chaque favori
@@ -40,9 +42,9 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Autocomplétion des tags existants dans le formulaire
 
 ### Badges (style visuel)
-- 12 styles de couleur : `deepBlue`, `turquoise`, `emerald`, `amber`, `coral`, `violet`, `rose`, `slate`, `indigo`, `teal`, `lime`, `crimson`
-- Dégradé de couleur et **effet Liquid Glass** (inspiré iOS 26) : reflet spéculaire, overlay directionnel, inset shadow
-- Texte de badge personnalisable (s'affiche sous le titre)
+- 12 styles de couleur : `deepBlue`, `deepPurple`, `lightViolet`, `lightBlue`, `turquoise`, `lightGreen`, `lightOrange`, `deepOrange`, `red`, `pink`, `brown`, `grey`
+- Dégradé de couleur et **effet Liquid Glass** (inspiré iOS) : reflet spéculaire, overlay directionnel, inset shadow
+- Texte de badge personnalisable (affiché sur la carte)
 - Effet hover avec intensification du glass et translation verticale
 
 ### Visibilité
@@ -52,9 +54,17 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Administration
 - **Gestion des utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
-- **Gestion des listes** : création, renommage, suppression
+- **Gestion des listes** : création, renommage, suppression, **définition de la liste par défaut** (⭐)
+- Tableau des listes avec **recherche live** et scroll interne
 - **Maintenance** : migration de base de données idempotente depuis l'interface (sans accès SSH), journal de résultat affiché
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
+
+### Migration depuis l'ancienne version
+- Script `scripts/migrate_ini.php` — importe les favoris depuis les fichiers `.ini` de l'ancienne version
+- Gestion de l'encodage (UTF-8/Latin-1), décodage des entités HTML
+- Mapping automatique des anciens styles de badge vers les nouveaux
+- Idempotent : peut être relancé sans créer de doublons
+- Script `scripts/reset_bookmarks.php` — vide les tables `bookmarks` et `lists` (réinitialise les auto-increments)
 
 ---
 
@@ -68,7 +78,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ## Prérequis
 
-- PHP ≥ 8.3 avec extension `pdo_sqlite`
+- PHP ≥ 8.3 avec extensions `pdo_sqlite`, `mbstring`, `curl`
 - Composer
 - Apache avec `mod_rewrite` activé
 
@@ -90,6 +100,12 @@ php scripts/init-db.php
 Pointer le document root d'Apache sur le dossier `public/`.
 
 > **Important :** Modifier immédiatement les identifiants admin par défaut après l'installation (voir ci-dessous).
+
+### Migration depuis une ancienne version (fichiers `.ini`)
+
+```bash
+php scripts/migrate_ini.php /chemin/vers/dossier/datas
+```
 
 ---
 
@@ -181,13 +197,15 @@ KT-Start/
 │   └── assets/
 │       └── css/app.css
 ├── scripts/
-│   └── init-db.php                     # Schéma complet, migrations idempotentes, compte admin
+│   ├── init-db.php                     # Schéma complet, migrations idempotentes, compte admin
+│   ├── migrate_ini.php                 # Import des favoris depuis les fichiers .ini
+│   └── reset_bookmarks.php             # Vide les tables bookmarks et lists
 ├── src/
 │   ├── Config/
 │   │   ├── BadgeStyles.php             # 12 styles de badge (couleurs + dégradés)
 │   │   └── Config.php                  # Accès aux variables d'environnement
 │   ├── Controller/
-│   │   ├── AdminController.php         # Utilisateurs, listes, maintenance
+│   │   ├── AdminController.php         # Utilisateurs, listes (+ liste par défaut), maintenance
 │   │   ├── AuthController.php          # Connexion / déconnexion
 │   │   └── BookmarkController.php      # home, index, store, update, delete, reorder, fetchMeta
 │   ├── Core/
@@ -200,7 +218,7 @@ KT-Start/
 │   │   └── View.php                    # render(), e(), asset()
 │   ├── Repository/
 │   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, getAllTags
-│   │   ├── ListRepository.php          # findAll, findByName, create, rename, delete
+│   │   ├── ListRepository.php          # CRUD + findDefault, setDefault, clearDefault
 │   │   └── UserRepository.php          # CRUD utilisateurs
 │   └── Service/
 │       ├── MigrationService.php        # Migrations idempotentes (PRAGMA + ALTER TABLE)
@@ -227,7 +245,7 @@ KT-Start/
 | Table | Rôle |
 |---|---|
 | `users` | Comptes utilisateurs (email, hash, rôle) |
-| `lists` | Listes pour organiser les favoris |
+| `lists` | Listes pour organiser les favoris (`is_default` pour la liste affichée par défaut) |
 | `bookmarks` | Favoris (URL, titre, tags, badge, visibilité, position) |
 
 ---
@@ -238,7 +256,7 @@ Toutes les routes passent par `?action=xxx` :
 
 | Action | Méthode | Accès | Description |
 |---|---|---|---|
-| `home` | GET | Public | Favoris publics |
+| `home` | GET | Public | Favoris publics (liste par défaut si définie) |
 | `login` | GET | Public | Formulaire de connexion |
 | `login_submit` | POST | Public | Traitement de la connexion |
 | `logout` | POST | Auth | Déconnexion |
@@ -254,6 +272,7 @@ Toutes les routes passent par `?action=xxx` :
 | `admin_user_delete` | POST | Admin | Supprimer un utilisateur |
 | `admin_list_store` | POST | Admin | Créer une liste |
 | `admin_list_rename` | POST | Admin | Renommer une liste |
+| `admin_list_set_default` | POST | Admin | Définir/retirer la liste par défaut |
 | `admin_list_delete` | POST | Admin | Supprimer une liste |
 | `admin_run_migration` | POST | Admin | Lancer la migration de BDD |
 
@@ -261,8 +280,8 @@ Toutes les routes passent par `?action=xxx` :
 
 ## Pistes d'évolution
 
-- Migration des données de l'ancienne version (fichiers `.ini`)
 - Partage public par lien direct avec token
 - Page de statistiques (répartition par liste, tag, visibilité)
 - Import/export CSV ou JSON des favoris
 - Notifications de favoris expirés ou inaccessibles
+- Rôle `editor` (multi-utilisateurs sans accès admin)

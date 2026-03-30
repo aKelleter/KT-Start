@@ -6,6 +6,7 @@
     --app-text:   #1d1d1f;
     --app-muted:  #6e6e73;
     --app-border: #e5e5ea;
+    --app-hover-pale: #eef7fc;
     --app-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
 
     --app-blue:      #0288D1;
@@ -69,6 +70,16 @@ body.app-body {
     font-weight: 700;
     letter-spacing: -0.02em;
     text-decoration: none;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    margin: -0.35rem -0.8rem;
+    transition: background .15s ease, color .15s ease;
+}
+
+.app-brand:hover,
+.app-brand:focus {
+    background: var(--app-hover-pale);
+    color: var(--app-text) !important;
 }
 
 .app-brand-icon {
@@ -183,6 +194,36 @@ body.app-body {
     text-decoration: none;
 }
 
+.app-navbar .btn-outline-blue:hover,
+.app-navbar .btn-outline-blue:focus {
+    background: var(--app-hover-pale);
+    color: var(--app-blue);
+    border-color: rgba(2, 136, 209, 0.22);
+}
+
+.ks-toolbar .btn-outline-secondary:hover,
+.ks-toolbar .btn-outline-secondary:focus,
+.ks-toolbar .btn-outline-secondary.active,
+.ks-toolbar .btn-outline-secondary:active,
+.ks-toolbar .show > .btn-outline-secondary.dropdown-toggle {
+    background-color: var(--app-hover-pale) !important;
+    border-color: rgba(2, 136, 209, 0.22) !important;
+    color: var(--app-blue) !important;
+    box-shadow: none !important;
+}
+
+.ks-view-switcher .btn-outline-secondary,
+.ks-view-switcher .btn-outline-secondary + .btn-outline-secondary {
+    border-color: #000 !important;
+}
+
+.ks-view-switcher .btn-outline-secondary.active,
+.ks-view-switcher .btn-outline-secondary:active,
+.ks-view-switcher .btn-outline-secondary:hover,
+.ks-view-switcher .btn-outline-secondary:focus {
+    border-color: #000 !important;
+}
+
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
 .alert {
     border-radius: 16px;
@@ -207,40 +248,27 @@ body.app-body {
     transform: translateY(-8px);
 }
 
-/* ── Onglets listes ──────────────────────────────────────────────────────── */
-.ks-list-tabs {
-    display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    gap: .3rem;
-    padding-bottom: .5rem;
+/* ── Dropdown liste ──────────────────────────────────────────────────────── */
+.ks-list-dropdown-items {
+    max-height: 280px;
+    overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--app-border) transparent;
 }
 
-.ks-list-tabs::-webkit-scrollbar { height: 4px; }
-.ks-list-tabs::-webkit-scrollbar-thumb { background: var(--app-border); border-radius: 2px; }
-
-.ks-list-tab {
-    display: inline-block;
-    padding: .28rem .8rem;
-    border-radius: 999px;
-    background: var(--app-card);
-    border: 1px solid var(--app-border);
-    color: var(--app-muted);
-    text-decoration: none;
-    font-size: .78rem;
-    font-weight: 600;
-    white-space: nowrap;
-    transition: background .15s, color .15s, border-color .15s;
+.dropdown-menu .dropdown-item.active,
+.dropdown-menu .dropdown-item:active {
+    background-color: var(--app-blue-soft) !important;
+    color: var(--app-blue) !important;
 }
 
-.ks-list-tab:hover  { background: #e9ecef; color: var(--app-text); }
-
-.ks-list-tab.active {
-    background: var(--app-blue);
-    color: #fff;
-    border-color: var(--app-blue);
+/* Bouton dropdown ouvert : garder le style outline sans fond gris foncé */
+.btn-outline-secondary.show,
+.btn-outline-secondary:focus-visible {
+    background-color: transparent !important;
+    color: inherit !important;
+    border-color: currentColor !important;
+    box-shadow: none !important;
 }
 
 /* ── Vue Badges ──────────────────────────────────────────────────────────── */

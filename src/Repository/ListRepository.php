@@ -62,6 +62,33 @@ final class ListRepository
             ->fetchAll();
     }
 
+    public function findDefault(): ?int
+    {
+        try {
+            $stmt = Database::connection()->query(
+                'SELECT id FROM lists WHERE is_default = 1 LIMIT 1'
+            );
+            $row = $stmt->fetch();
+            return $row ? (int) $row['id'] : null;
+        } catch (\PDOException) {
+            // Colonne is_default absente : migration pas encore lancée
+            return null;
+        }
+    }
+
+    public function setDefault(int $id): void
+    {
+        $pdo = Database::connection();
+        $pdo->exec('UPDATE lists SET is_default = 0');
+        $stmt = $pdo->prepare('UPDATE lists SET is_default = 1 WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+    }
+
+    public function clearDefault(): void
+    {
+        Database::connection()->exec('UPDATE lists SET is_default = 0');
+    }
+
     public function delete(int $id): void
     {
         $stmt = Database::connection()->prepare('DELETE FROM lists WHERE id = :id');

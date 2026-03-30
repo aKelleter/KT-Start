@@ -25,7 +25,12 @@ final class BookmarkController
             Response::redirect('?action=bookmarks');
         }
 
-        $listId = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
+        $listRepo      = new ListRepository();
+        $defaultListId = $listRepo->findDefault();
+
+        $listId = isset($_GET['list']) && $_GET['list'] !== ''
+            ? (int) $_GET['list']
+            : $defaultListId;
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
         $search = trim($_GET['q'] ?? '');
@@ -56,8 +61,14 @@ final class BookmarkController
 
     public function index(): void
     {
-        $userId = (int) Auth::id();
-        $listId = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
+        $userId     = (int) Auth::id();
+        $listRepo   = new ListRepository();
+        $defaultListId = $listRepo->findDefault();
+
+        // Si aucun filtre liste dans l'URL, appliquer la liste par défaut
+        $listId = isset($_GET['list']) && $_GET['list'] !== ''
+            ? (int) $_GET['list']
+            : $defaultListId;
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
         $search = trim($_GET['q'] ?? '');

@@ -38,29 +38,17 @@ $badgeStyles = BadgeStyles::all();
 ?>
 
 <?php if (!empty($flash)): ?>
-    <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show mb-3" role="alert">
+    <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show mb-3 text-center" role="alert">
         <?= View::e($flash['message']) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
 
-<!-- ── Onglets listes ─────────────────────────────────────────────────────── -->
-<div class="ks-list-tabs mb-2">
-    <a href="<?= $q(['list' => null, 'tag' => null, 'page' => null]) ?>"
-       class="ks-list-tab<?= $listId === null ? ' active' : '' ?>">ALL</a>
-    <?php foreach ($lists as $l): ?>
-        <a href="<?= $q(['list' => $l['id'], 'tag' => null, 'page' => null]) ?>"
-           class="ks-list-tab<?= $listId === (int) $l['id'] ? ' active' : '' ?>">
-            <?= View::e($l['name']) ?>
-        </a>
-    <?php endforeach; ?>
-</div>
-
 <!-- ── Barre d'outils ────────────────────────────────────────────────────── -->
-<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+<div class="ks-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
     <!-- Switcher de vue -->
-    <div class="btn-group btn-group-sm">
+    <div class="ks-view-switcher btn-group btn-group-sm">
         <a href="<?= $q(['view' => 'badges', 'page' => null]) ?>"
            class="btn btn-outline-secondary<?= $view === 'badges' ? ' active' : '' ?>"
            title="Vue Badges"><i class="bi bi-grid-3x3-gap-fill"></i></a>
@@ -93,6 +81,38 @@ $badgeStyles = BadgeStyles::all();
                 </li>
             <?php endforeach; ?>
         </ul>
+    </div>
+
+    <!-- Filtre liste -->
+    <?php
+        $currentListName = null;
+        if ($listId !== null) {
+            foreach ($lists as $l) {
+                if ((int) $l['id'] === $listId) { $currentListName = $l['name']; break; }
+            }
+        }
+    ?>
+    <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $listId !== null ? ' text-primary fw-semibold' : '' ?>"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside">
+            <i class="bi bi-collection me-1"></i><?= $currentListName !== null ? View::e($currentListName) : 'Liste' ?>
+        </button>
+        <div class="dropdown-menu p-2" style="min-width:200px">
+            <input type="search" class="form-control form-control-sm mb-1 ks-list-search"
+                   placeholder="Rechercher…" autocomplete="off">
+            <div class="ks-list-dropdown-items">
+                <a class="dropdown-item<?= $listId === null ? ' active' : '' ?>"
+                   href="<?= $q(['list' => null, 'tag' => null, 'page' => null]) ?>">— Toutes</a>
+                <hr class="dropdown-divider my-1">
+                <?php foreach ($lists as $l): ?>
+                    <a class="dropdown-item<?= $listId === (int) $l['id'] ? ' active' : '' ?>"
+                       href="<?= $q(['list' => $l['id'], 'tag' => null, 'page' => null]) ?>"
+                       data-list-name="<?= strtolower(View::e($l['name'])) ?>">
+                        <?= View::e($l['name']) ?>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
 
     <!-- Filtre tag -->
@@ -422,12 +442,35 @@ $badgeStyles = BadgeStyles::all();
                         <!-- Liste -->
                         <div class="col-md-5">
                             <label class="form-label">Liste</label>
-                            <select class="form-select" name="list_id" id="bmListId">
+                            <select class="d-none" name="list_id" id="bmListId">
                                 <option value="">— Aucune —</option>
                                 <?php foreach ($lists as $l): ?>
                                     <option value="<?= $l['id'] ?>"><?= View::e($l['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <div class="dropdown w-100" id="bmListDropdown">
+                                <button type="button"
+                                        class="form-select text-start d-flex align-items-center justify-content-between"
+                                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                                        id="bmListBtn">
+                                    <span id="bmListLabel">— Aucune —</span>
+                                    <i class="bi bi-chevron-down ms-2 text-muted" style="font-size:.75rem"></i>
+                                </button>
+                                <div class="dropdown-menu w-100 p-2">
+                                    <input type="search" class="form-control form-control-sm mb-1"
+                                           id="bmListSearch" placeholder="Rechercher…" autocomplete="off">
+                                    <div style="max-height:200px;overflow-y:auto" id="bmListItems">
+                                        <a class="dropdown-item" href="#" data-value="">— Aucune —</a>
+                                        <?php foreach ($lists as $l): ?>
+                                            <a class="dropdown-item" href="#"
+                                               data-value="<?= $l['id'] ?>"
+                                               data-label="<?= View::e($l['name']) ?>">
+                                                <?= View::e($l['name']) ?>
+                                            </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <!-- Nouvelle liste -->
                         <div class="col-md-4">
@@ -499,6 +542,22 @@ $badgeStyles = BadgeStyles::all();
     </div>
 </div>
 
+<!-- ── JS recherche liste ─────────────────────────────────────────────────── -->
+<script>
+(function () {
+    const input = document.querySelector('.ks-list-search');
+    if (!input) return;
+    input.addEventListener('input', function () {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.ks-list-dropdown-items a[data-list-name]').forEach(a => {
+            a.style.display = a.dataset.listName.includes(q) ? '' : 'none';
+        });
+    });
+    // Garder le focus dans l'input sans fermer le dropdown
+    input.addEventListener('click', e => e.stopPropagation());
+})();
+</script>
+
 <!-- ── JS modal ───────────────────────────────────────────────────────────── -->
 <script>
 (function () {
@@ -528,13 +587,15 @@ $badgeStyles = BadgeStyles::all();
             document.getElementById('bmDescription').value = btn.dataset.description;
             document.getElementById('bmBadgeText').value   = btn.dataset.badgeText;
             document.getElementById('bmTags').value        = btn.dataset.tags;
-            document.getElementById('bmListId').value      = btn.dataset.listId;
+            const listItem = document.querySelector(`#bmListItems .dropdown-item[data-value="${btn.dataset.listId}"]`);
+            selectList(btn.dataset.listId, listItem?.dataset.label ?? listItem?.textContent.trim());
             document.getElementById('bmVisibility').value  = btn.dataset.visibility;
             document.getElementById('deleteId').value      = btn.dataset.id;
             selectBadgeStyle(btn.dataset.badgeStyle);
         } else {
             form.reset();
             document.getElementById('bmId').value = '';
+            selectList('', '— Aucune —');
             selectBadgeStyle('deepBlue');
         }
     });
@@ -574,6 +635,33 @@ $badgeStyles = BadgeStyles::all();
             this.disabled = false;
         }
     });
+
+    // Liste picker
+    function selectList(value, label) {
+        document.getElementById('bmListId').value  = value;
+        document.getElementById('bmListLabel').textContent = label || '— Aucune —';
+        // Marquer l'item actif
+        document.querySelectorAll('#bmListItems .dropdown-item').forEach(a => {
+            a.classList.toggle('active', a.dataset.value === String(value));
+        });
+        bootstrap.Dropdown.getInstance(document.getElementById('bmListBtn'))?.hide();
+    }
+
+    document.getElementById('bmListItems').addEventListener('click', function (e) {
+        const item = e.target.closest('.dropdown-item');
+        if (!item) return;
+        e.preventDefault();
+        selectList(item.dataset.value, item.dataset.label ?? item.textContent.trim());
+    });
+
+    document.getElementById('bmListSearch').addEventListener('input', function () {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('#bmListItems .dropdown-item').forEach(a => {
+            a.style.display = (a.dataset.label ?? a.textContent).toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+
+    document.getElementById('bmListSearch').addEventListener('click', e => e.stopPropagation());
 
     // Badge style picker
     function selectBadgeStyle(style) {

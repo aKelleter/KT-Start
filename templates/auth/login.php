@@ -11,7 +11,7 @@
             </div>
 
             <?php if (!empty($flash)): ?>
-                <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show" role="alert">
+                <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show text-center" role="alert">
                     <?= View::e($flash['message']) ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>

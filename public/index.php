@@ -85,9 +85,10 @@ $router->get('admin',               [AdminController::class, 'index']);
 $router->post('admin_user_store',   [AdminController::class, 'userStore']);
 $router->post('admin_user_update',  [AdminController::class, 'userUpdate']);
 $router->post('admin_user_delete',  [AdminController::class, 'userDelete']);
-$router->post('admin_list_store',   [AdminController::class, 'listStore']);
-$router->post('admin_list_rename',  [AdminController::class, 'listRename']);
-$router->post('admin_list_delete',   [AdminController::class, 'listDelete']);
+$router->post('admin_list_store',       [AdminController::class, 'listStore']);
+$router->post('admin_list_rename',      [AdminController::class, 'listRename']);
+$router->post('admin_list_set_default', [AdminController::class, 'listSetDefault']);
+$router->post('admin_list_delete',      [AdminController::class, 'listDelete']);
 $router->post('admin_run_migration', [AdminController::class, 'runMigration']);
 
 $action = $_GET['action'] ?? 'home';

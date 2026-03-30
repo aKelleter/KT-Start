@@ -28,12 +28,14 @@ final class AdminController
         $migrationLog = $_SESSION['_migration_log'] ?? null;
         unset($_SESSION['_migration_log']);
 
+        $listRepo = new ListRepository();
         View::render('admin/index', [
-            'users'        => (new UserRepository())->findAll(),
-            'lists'        => (new ListRepository())->findAllWithCount(),
-            'csrf'         => Csrf::token(),
-            'flash'        => Flash::get(),
-            'migrationLog' => $migrationLog,
+            'users'         => (new UserRepository())->findAll(),
+            'lists'         => $listRepo->findAllWithCount(),
+            'defaultListId' => $listRepo->findDefault(),
+            'csrf'          => Csrf::token(),
+            'flash'         => Flash::get(),
+            'migrationLog'  => $migrationLog,
         ]);
     }
 
@@ -237,6 +239,35 @@ final class AdminController
 
         $repo->rename($id, $name);
         Flash::set('success', 'Liste renommée.');
+        Response::redirect('?action=admin');
+    }
+
+    public function listSetDefault(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin');
+        }
+
+        $id   = (int) ($_POST['id'] ?? 0);
+        $repo = new ListRepository();
+
+        if (!$repo->findById($id)) {
+            Flash::set('danger', 'Liste introuvable.');
+            Response::redirect('?action=admin');
+        }
+
+        // Si la liste est déjà la liste par défaut, on la retire
+        if ($repo->findDefault() === $id) {
+            $repo->clearDefault();
+            Flash::set('success', 'Liste par défaut retirée.');
+        } else {
+            $repo->setDefault($id);
+            Flash::set('success', 'Liste par défaut définie.');
+        }
+
         Response::redirect('?action=admin');
     }
 

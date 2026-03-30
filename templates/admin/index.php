@@ -6,7 +6,7 @@ use App\Core\View;
 ?>
 
 <?php if (!empty($flash)): ?>
-    <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show mb-4" role="alert">
+    <div class="alert alert-<?= View::e($flash['type']) ?> alert-dismissible fade show mb-4 text-center" role="alert">
         <?= View::e($flash['message']) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
@@ -89,32 +89,51 @@ use App\Core\View;
             <i class="bi bi-folder me-2 text-muted"></i>Listes
             <span class="badge text-bg-secondary fw-normal ms-1" style="font-size:.72rem"><?= count($lists) ?></span>
         </h2>
-        <button class="btn btn-sm btn-primary"
-                data-bs-toggle="modal" data-bs-target="#listModal" data-mode="add">
-            <i class="bi bi-plus-lg me-1"></i>Ajouter
-        </button>
+        <div class="d-flex align-items-center gap-2">
+            <input type="search" id="listFilter" class="form-control form-control-sm"
+                   placeholder="Rechercher une liste…" autocomplete="off" style="width:200px">
+            <button class="btn btn-sm btn-primary"
+                    data-bs-toggle="modal" data-bs-target="#listModal" data-mode="add">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter
+            </button>
+        </div>
     </div>
 
-    <div class="ks-admin-card">
+    <div class="ks-admin-card" style="max-height:420px;overflow-y:auto">
         <table class="table table-hover table-sm align-middle mb-0">
             <thead>
                 <tr>
                     <th>Nom</th>
                     <th style="width:100px">Favoris</th>
                     <th style="width:110px">Créée le</th>
-                    <th style="width:70px"></th>
+                    <th style="width:100px"></th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="listTableBody">
             <?php if (empty($lists)): ?>
                 <tr><td colspan="4" class="text-muted text-center py-3">Aucune liste.</td></tr>
             <?php endif; ?>
             <?php foreach ($lists as $l): ?>
+                <?php $isDefault = (int) $l['id'] === $defaultListId; ?>
                 <tr>
-                    <td class="fw-semibold"><?= View::e($l['name']) ?></td>
+                    <td class="fw-semibold">
+                        <?= View::e($l['name']) ?>
+                        <?php if ($isDefault): ?>
+                            <i class="bi bi-star-fill text-warning ms-1" style="font-size:.8rem" title="Liste par défaut"></i>
+                        <?php endif; ?>
+                    </td>
                     <td class="text-muted small"><?= (int) $l['bookmark_count'] ?> favori<?= $l['bookmark_count'] > 1 ? 's' : '' ?></td>
                     <td class="text-muted small"><?= View::e(substr($l['created_at'], 0, 10)) ?></td>
-                    <td>
+                    <td class="d-flex gap-1">
+                        <form method="post" action="?action=admin_list_set_default">
+                            <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+                            <input type="hidden" name="id" value="<?= $l['id'] ?>">
+                            <button type="submit"
+                                    class="btn btn-sm <?= $isDefault ? 'btn-warning' : 'btn-outline-secondary' ?>"
+                                    title="<?= $isDefault ? 'Retirer comme liste par défaut' : 'Définir comme liste par défaut' ?>">
+                                <i class="bi bi-star<?= $isDefault ? '-fill' : '' ?>"></i>
+                            </button>
+                        </form>
                         <button class="btn btn-sm btn-outline-secondary"
                                 data-bs-toggle="modal" data-bs-target="#listModal"
                                 data-mode="edit"
@@ -335,6 +354,15 @@ use App\Core\View;
         if (confirm('Supprimer cette liste ? Les favoris associés ne seront pas supprimés.')) {
             document.getElementById('listDeleteForm').submit();
         }
+    });
+
+    // ── Filtre liste ──────────────────────────────────────────────────────
+    document.getElementById('listFilter').addEventListener('input', function () {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('#listTableBody tr').forEach(tr => {
+            const name = tr.querySelector('td')?.textContent.toLowerCase() ?? '';
+            tr.style.display = name.includes(q) ? '' : 'none';
+        });
     });
 
 })();

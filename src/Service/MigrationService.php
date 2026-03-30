@@ -34,10 +34,12 @@ final class MigrationService
                 CREATE TABLE IF NOT EXISTS lists (
                     id         INTEGER PRIMARY KEY AUTOINCREMENT,
                     name       TEXT NOT NULL UNIQUE,
+                    is_default INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
             ",
             'columns' => [
+                'is_default' => "ALTER TABLE lists ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0",
                 'created_at' => "ALTER TABLE lists ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
             ],
         ],

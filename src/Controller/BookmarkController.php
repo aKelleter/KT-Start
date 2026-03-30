@@ -10,13 +10,18 @@ use App\Core\Response;
 use App\Core\View;
 use App\Repository\BookmarkRepository;
 use App\Repository\ListRepository;
+use App\Repository\SettingsRepository;
 use App\Service\UrlMetaService;
 
 final class BookmarkController
 {
     private static function perPage(): int
     {
-        return max(1, (int) ($_ENV['BOOKMARKS_PER_PAGE'] ?? 24));
+        // Priorité : DB → .env/.env.local → défaut 24
+        $fromDb  = (new SettingsRepository())->get('bookmarks_per_page');
+        $fromEnv = (string) ($_ENV['BOOKMARKS_PER_PAGE'] ?? '');
+        $value   = $fromDb !== '' ? $fromDb : ($fromEnv !== '' ? $fromEnv : '24');
+        return max(1, (int) $value);
     }
 
     public function home(): void
@@ -28,9 +33,13 @@ final class BookmarkController
         $listRepo      = new ListRepository();
         $defaultListId = $listRepo->findDefault();
 
-        $listId = isset($_GET['list']) && $_GET['list'] !== ''
-            ? (int) $_GET['list']
-            : $defaultListId;
+        $listRaw = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
+        if ($listRaw !== null) {
+            $listId = $listRaw === 0 ? null : $listRaw;
+        } else {
+            $listId  = $defaultListId;
+            $listRaw = $defaultListId;
+        }
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
         $search = trim($_GET['q'] ?? '');
@@ -42,10 +51,12 @@ final class BookmarkController
         [$page, $totalPages, $offset] = $this->paginate($total);
 
         View::render('bookmarks/index', [
-            'lists'      => (new ListRepository())->findAll(),
-            'bookmarks'  => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort, $search ?: null, self::perPage(), $offset),
+            'lists'      => $listRepo->findAll(),
+            'bookmarks'  => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'    => [],
             'listId'     => $listId,
+            'listRaw'    => $listRaw,
+            'showAll'    => self::showAll(),
             'tag'        => $tag,
             'sort'       => $sort,
             'search'     => $search,
@@ -62,13 +73,18 @@ final class BookmarkController
     public function index(): void
     {
         $userId     = (int) Auth::id();
-        $listRepo   = new ListRepository();
+        $listRepo      = new ListRepository();
         $defaultListId = $listRepo->findDefault();
 
-        // Si aucun filtre liste dans l'URL, appliquer la liste par défaut
-        $listId = isset($_GET['list']) && $_GET['list'] !== ''
-            ? (int) $_GET['list']
-            : $defaultListId;
+        // list=0 → "Toutes" explicitement choisi (pas de filtre)
+        // list absente → appliquer la liste par défaut
+        $listRaw = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
+        if ($listRaw !== null) {
+            $listId = $listRaw === 0 ? null : $listRaw;
+        } else {
+            $listId  = $defaultListId;
+            $listRaw = $defaultListId; // pour construire les URLs de pagination
+        }
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
         $search = trim($_GET['q'] ?? '');
@@ -80,10 +96,12 @@ final class BookmarkController
         [$page, $totalPages, $offset] = $this->paginate($total);
 
         View::render('bookmarks/index', [
-            'lists'      => (new ListRepository())->findAll(),
-            'bookmarks'  => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort, $search ?: null, self::perPage(), $offset),
+            'lists'      => $listRepo->findAll(),
+            'bookmarks'  => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'    => $bookmarkRepo->getAllTags($userId),
             'listId'     => $listId,
+            'listRaw'    => $listRaw,
+            'showAll'    => self::showAll(),
             'tag'        => $tag,
             'sort'       => $sort,
             'search'     => $search,
@@ -229,9 +247,17 @@ final class BookmarkController
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    private static function showAll(): bool
+    {
+        return ($_GET['perpage'] ?? '') === 'all';
+    }
+
     /** @return array{int, int, int} [page, totalPages, offset] */
     private function paginate(int $total): array
     {
+        if (self::showAll()) {
+            return [1, 1, 0];
+        }
         $totalPages = max(1, (int) ceil($total / self::perPage()));
         $page       = max(1, min($totalPages, (int) ($_GET['page'] ?? 1)));
         $offset     = ($page - 1) * self::perPage();

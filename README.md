@@ -26,7 +26,9 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - **Tri par glisser-déposer** (SortableJS) en mode vue Badges, tri par position
 - Tri par colonne : position, titre, hôte, date (croissant/décroissant)
 - **Recherche full-text** sur titre, hôte, URL, description, tags et texte de badge
-- **Pagination configurable** via `BOOKMARKS_PER_PAGE` dans `.env`
+- **Pagination configurable** — nombre de favoris par page éditable depuis l'administration
+- **Bouton "tout afficher"** (∞) pour désactiver la pagination à la volée
+- Compteur `X / Y favoris` — affiche le nombre sur la page et le total filtré
 - **Bouton "remonter en haut"** flottant (apparaît après défilement)
 
 ### Listes
@@ -35,6 +37,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - **Liste par défaut** configurable — affichée automatiquement à l'ouverture (connecté ou non)
 - Filtrage par liste via un **dropdown avec recherche live** dans la barre d'outils
 - Sélection de liste dans les modaux ajout/édition via un dropdown searchable
+- "— Toutes" accessible explicitement, préservé lors de la pagination et des recherches
 
 ### Tags
 - Tags multiples séparés par virgule sur chaque favori
@@ -43,9 +46,8 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Badges (style visuel)
 - 12 styles de couleur : `deepBlue`, `deepPurple`, `lightViolet`, `lightBlue`, `turquoise`, `lightGreen`, `lightOrange`, `deepOrange`, `red`, `pink`, `brown`, `grey`
-- Dégradé de couleur et **effet Liquid Glass** (inspiré iOS) : reflet spéculaire, overlay directionnel, inset shadow
+- Dégradé de couleur et **effet Liquid Glass** : reflet spéculaire, overlay directionnel, inset shadow
 - Texte de badge personnalisable (affiché sur la carte)
-- Effet hover avec intensification du glass et translation verticale
 
 ### Visibilité
 - Chaque favori peut être `public` ou `private`
@@ -54,17 +56,16 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Administration
 - **Gestion des utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
-- **Gestion des listes** : création, renommage, suppression, **définition de la liste par défaut** (⭐)
-- Tableau des listes avec **recherche live** et scroll interne
-- **Maintenance** : migration de base de données idempotente depuis l'interface (sans accès SSH), journal de résultat affiché
+- **Gestion des listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
+- **Paramètres applicatifs** : nombre de favoris par page éditable (priorité DB → `.env` → 24)
+- **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
 
 ### Migration depuis l'ancienne version
-- Script `scripts/migrate_ini.php` — importe les favoris depuis les fichiers `.ini` de l'ancienne version
-- Gestion de l'encodage (UTF-8/Latin-1), décodage des entités HTML
-- Mapping automatique des anciens styles de badge vers les nouveaux
+- Script `scripts/migrate_ini.php` — importe les favoris depuis les fichiers `.ini`
+- Gestion de l'encodage (UTF-8/Latin-1), décodage des entités HTML, mapping des styles de badge
 - Idempotent : peut être relancé sans créer de doublons
-- Script `scripts/reset_bookmarks.php` — vide les tables `bookmarks` et `lists` (réinitialise les auto-increments)
+- Script `scripts/reset_bookmarks.php` — vide les tables `bookmarks` et `lists`
 
 ---
 
@@ -99,7 +100,7 @@ php scripts/init-db.php
 
 Pointer le document root d'Apache sur le dossier `public/`.
 
-> **Important :** Modifier immédiatement les identifiants admin par défaut après l'installation (voir ci-dessous).
+> **Important :** Modifier immédiatement les identifiants admin par défaut après l'installation.
 
 ### Migration depuis une ancienne version (fichiers `.ini`)
 
@@ -113,50 +114,29 @@ php scripts/migrate_ini.php /chemin/vers/dossier/datas
 
 ### Fonctionnement des fichiers d'environnement
 
-La configuration repose sur deux fichiers complémentaires :
-
 | Fichier | Versionné | Rôle |
 |---|---|---|
-| `.env` | Oui | Valeurs par défaut et variables mises à jour à chaque version (`APP_VERSION`, etc.) |
-| `.env.local` | **Non** | Surcharges propres à l'environnement (prod, staging…) — créé une seule fois sur le serveur, jamais écrasé |
-
-Au démarrage, `.env` est chargé en premier, puis `.env.local` (s'il existe) **écrase** les variables qu'il redéfinit. Cela permet de mettre à jour `.env` librement sans jamais toucher aux paramètres de production.
-
-### Mise en place sur le serveur de production
-
-```bash
-# À faire une seule fois, juste après le premier déploiement
-cp .env.local.example .env.local
-# Éditer .env.local avec les valeurs réelles
-```
-
-Contenu type de `.env.local` en production :
-
-```ini
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://votre-domaine.com/
-
-BOOKMARKS_PER_PAGE=24
-```
-
-> `.env.local` est ignoré par git (`.gitignore`). Il ne sera jamais écrasé lors des mises à jour.
+| `.env` | Oui | Valeurs par défaut |
+| `.env.local` | **Non** | Surcharges locales/prod — jamais écrasé |
 
 ### Variables disponibles dans `.env`
 
 ```ini
-# Application
 APP_NAME="KT-Start"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://votre-domaine.com/
 
-# Base de données
 DB_DATABASE=database/app.sqlite
 
-# Pagination
 BOOKMARKS_PER_PAGE=24
 ```
+
+### Priorité de `BOOKMARKS_PER_PAGE`
+
+1. **Base de données** (`settings.bookmarks_per_page`) — modifiable depuis Admin → Paramètres
+2. **`.env` / `.env.local`**
+3. **Défaut** : 24
 
 ---
 
@@ -168,7 +148,6 @@ Mot de passe : changeme
 ```
 
 > **À modifier impérativement avant toute mise en production.**
-> Changer le mot de passe via Administration → Utilisateurs.
 
 ---
 
@@ -197,15 +176,15 @@ KT-Start/
 │   └── assets/
 │       └── css/app.css
 ├── scripts/
-│   ├── init-db.php                     # Schéma complet, migrations idempotentes, compte admin
-│   ├── migrate_ini.php                 # Import des favoris depuis les fichiers .ini
-│   └── reset_bookmarks.php             # Vide les tables bookmarks et lists
+│   ├── init-db.php                     # Schéma complet, migrations, compte admin
+│   ├── migrate_ini.php                 # Import favoris depuis fichiers .ini
+│   └── reset_bookmarks.php             # Vide tables bookmarks et lists
 ├── src/
 │   ├── Config/
-│   │   ├── BadgeStyles.php             # 12 styles de badge (couleurs + dégradés)
+│   │   ├── BadgeStyles.php             # 12 styles de badge
 │   │   └── Config.php                  # Accès aux variables d'environnement
 │   ├── Controller/
-│   │   ├── AdminController.php         # Utilisateurs, listes (+ liste par défaut), maintenance
+│   │   ├── AdminController.php         # Utilisateurs, listes, paramètres, maintenance
 │   │   ├── AuthController.php          # Connexion / déconnexion
 │   │   └── BookmarkController.php      # home, index, store, update, delete, reorder, fetchMeta
 │   ├── Core/
@@ -219,23 +198,20 @@ KT-Start/
 │   ├── Repository/
 │   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, getAllTags
 │   │   ├── ListRepository.php          # CRUD + findDefault, setDefault, clearDefault
+│   │   ├── SettingsRepository.php      # get, set, all — table settings clé/valeur
 │   │   └── UserRepository.php          # CRUD utilisateurs
 │   └── Service/
-│       ├── MigrationService.php        # Migrations idempotentes (PRAGMA + ALTER TABLE)
+│       ├── MigrationService.php        # Migrations idempotentes
 │       └── UrlMetaService.php          # curl + DOMDocument → title/host/description
 ├── templates/
-│   ├── layout.php                      # Navbar glassmorphism, footer, back-to-top
-│   ├── admin/
-│   │   └── index.php                   # Gestion utilisateurs, listes, maintenance
-│   ├── auth/
-│   │   └── login.php
-│   └── bookmarks/
-│       └── index.php                   # 3 vues (badges/table/liste), drag & drop, pagination
-├── .env                                # Variables par défaut (versionné)
-├── .env.local                          # Surcharges locales/prod (ignoré par git)
-├── .env.local.example                  # Modèle pour créer .env.local (versionné)
-├── composer.json
-└── .htaccess
+│   ├── layout.php
+│   ├── admin/index.php                 # Utilisateurs, listes, paramètres, maintenance
+│   ├── auth/login.php
+│   └── bookmarks/index.php             # 3 vues, drag & drop, pagination, tout afficher
+├── .env
+├── .env.local
+├── .env.local.example
+└── composer.json
 ```
 
 ---
@@ -245,14 +221,13 @@ KT-Start/
 | Table | Rôle |
 |---|---|
 | `users` | Comptes utilisateurs (email, hash, rôle) |
-| `lists` | Listes pour organiser les favoris (`is_default` pour la liste affichée par défaut) |
+| `lists` | Listes (`is_default` pour liste affichée par défaut) |
 | `bookmarks` | Favoris (URL, titre, tags, badge, visibilité, position) |
+| `settings` | Paramètres applicatifs clé/valeur (ex: `bookmarks_per_page`) |
 
 ---
 
 ## Routes
-
-Toutes les routes passent par `?action=xxx` :
 
 | Action | Méthode | Accès | Description |
 |---|---|---|---|
@@ -265,7 +240,7 @@ Toutes les routes passent par `?action=xxx` :
 | `bookmark_update` | POST | Auth | Modifier un favori |
 | `bookmark_delete` | POST | Auth | Supprimer un favori |
 | `bookmark_reorder` | POST | Auth | Réordonner (drag & drop, JSON) |
-| `bookmark_fetch_meta` | GET | Auth | Récupérer les métadonnées d'une URL (JSON) |
+| `bookmark_fetch_meta` | GET | Auth | Métadonnées d'une URL (JSON) |
 | `admin` | GET | Admin | Dashboard administration |
 | `admin_user_store` | POST | Admin | Créer un utilisateur |
 | `admin_user_update` | POST | Admin | Modifier un utilisateur |
@@ -274,6 +249,7 @@ Toutes les routes passent par `?action=xxx` :
 | `admin_list_rename` | POST | Admin | Renommer une liste |
 | `admin_list_set_default` | POST | Admin | Définir/retirer la liste par défaut |
 | `admin_list_delete` | POST | Admin | Supprimer une liste |
+| `admin_setting_update` | POST | Admin | Mettre à jour les paramètres (DB) |
 | `admin_run_migration` | POST | Admin | Lancer la migration de BDD |
 
 ---

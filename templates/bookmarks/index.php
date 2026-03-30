@@ -11,15 +11,18 @@ $page       = $page ?? 1;
 $totalPages = $totalPages ?? 1;
 $total      = $total ?? count($bookmarks);
 
+$listRaw = $listRaw ?? null;
+$showAll = $showAll ?? false;
 $q = fn(array $overrides = []): string => '?' . http_build_query(array_merge(
     array_filter([
-        'action' => $baseAction,
-        'list'   => $listId ?? null,
-        'tag'    => $tag ?: null,
-        'sort'   => $sort !== 'position' ? $sort : null,
-        'view'   => $view !== 'badges' ? $view : null,
-        'q'      => $search ?: null,
-        'page'   => $page > 1 ? $page : null,
+        'action'   => $baseAction,
+        'list'     => $listRaw,
+        'tag'      => $tag ?: null,
+        'sort'     => $sort !== 'position' ? $sort : null,
+        'view'     => $view !== 'badges' ? $view : null,
+        'q'        => $search ?: null,
+        'page'     => $page > 1 ? $page : null,
+        'perpage'  => $showAll ? 'all' : null,
     ], fn($v) => $v !== null && $v !== ''),
     $overrides
 ));
@@ -91,18 +94,23 @@ $badgeStyles = BadgeStyles::all();
                 if ((int) $l['id'] === $listId) { $currentListName = $l['name']; break; }
             }
         }
+        // "Toutes" explicitement choisi (list=0) ou aucune liste par défaut
+        $listExplicitlyChosen = $listRaw !== null;
+        $listLabel = $currentListName !== null
+            ? View::e($currentListName)
+            : ($listExplicitlyChosen ? '— Toutes' : 'Liste');
     ?>
     <div class="dropdown">
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $listId !== null ? ' text-primary fw-semibold' : '' ?>"
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $listExplicitlyChosen ? ' text-primary fw-semibold' : '' ?>"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside">
-            <i class="bi bi-collection me-1"></i><?= $currentListName !== null ? View::e($currentListName) : 'Liste' ?>
+            <i class="bi bi-collection me-1"></i><?= $listLabel ?>
         </button>
         <div class="dropdown-menu p-2" style="min-width:200px">
             <input type="search" class="form-control form-control-sm mb-1 ks-list-search"
                    placeholder="Rechercher…" autocomplete="off">
             <div class="ks-list-dropdown-items">
                 <a class="dropdown-item<?= $listId === null ? ' active' : '' ?>"
-                   href="<?= $q(['list' => null, 'tag' => null, 'page' => null]) ?>">— Toutes</a>
+                   href="<?= $q(['list' => 0, 'tag' => null, 'page' => null]) ?>">— Toutes</a>
                 <hr class="dropdown-divider my-1">
                 <?php foreach ($lists as $l): ?>
                     <a class="dropdown-item<?= $listId === (int) $l['id'] ? ' active' : '' ?>"
@@ -156,10 +164,11 @@ $badgeStyles = BadgeStyles::all();
     <!-- Recherche -->
     <form class="ks-search-form" method="get">
         <input type="hidden" name="action" value="<?= $baseAction ?>">
-        <?php if ($listId !== null): ?><input type="hidden" name="list" value="<?= $listId ?>"><?php endif; ?>
+        <?php if ($listRaw !== null): ?><input type="hidden" name="list" value="<?= $listRaw ?>"><?php endif; ?>
         <?php if ($view !== 'badges'): ?><input type="hidden" name="view" value="<?= View::e($view) ?>"><?php endif; ?>
         <?php if ($sort !== 'position'): ?><input type="hidden" name="sort" value="<?= View::e($sort) ?>"><?php endif; ?>
         <?php if ($tag): ?><input type="hidden" name="tag" value="<?= View::e($tag) ?>"><?php endif; ?>
+        <?php if ($showAll): ?><input type="hidden" name="perpage" value="all"><?php endif; ?>
         <div class="ks-search-wrap">
             <i class="bi bi-search ks-search-icon"></i>
             <input type="search" name="q" class="ks-search-input<?= $search ? ' active' : '' ?>"
@@ -169,14 +178,21 @@ $badgeStyles = BadgeStyles::all();
     </form>
 
     <!-- Compteur -->
+    <?php
+        $displayed = count($bookmarks);
+        $showRatio = !$showAll && $total > $displayed;
+        $fav       = fn(int $n): string => $n . ' favori' . ($n > 1 ? 's' : '');
+    ?>
     <?php if ($search): ?>
     <span class="text-muted small ms-1">
-        <?= count($bookmarks) ?> résultat<?= count($bookmarks) > 1 ? 's' : '' ?> pour
+        <?= $showRatio ? $fav($displayed) . ' / ' . $fav($total) : $fav($total) ?> pour
         <em>«&nbsp;<?= View::e($search) ?>&nbsp;»</em>
         — <a href="<?= $q(['q' => null]) ?>" class="text-muted">effacer</a>
     </span>
     <?php else: ?>
-    <span class="text-muted small ms-1"><?= count($bookmarks) ?> favori<?= count($bookmarks) > 1 ? 's' : '' ?></span>
+    <span class="text-muted small ms-1">
+        <?= $showRatio ? $fav($displayed) . ' / ' . $fav($total) : $fav($total) ?>
+    </span>
     <?php endif; ?>
 
     <?php if (!$readOnly): ?>
@@ -361,8 +377,10 @@ $badgeStyles = BadgeStyles::all();
 <?php endif; ?>
 
 <!-- ── Pagination ─────────────────────────────────────────────────────────── -->
-<?php if ($totalPages > 1): ?>
+<?php if ($totalPages > 1 || $showAll): ?>
 <nav class="ks-pagination" aria-label="Pagination">
+
+    <?php if (!$showAll): ?>
     <a class="ks-page-btn<?= $page <= 1 ? ' disabled' : '' ?>"
        href="<?= $page > 1 ? $q(['page' => $page - 1]) : '#' ?>">
         <i class="bi bi-chevron-left"></i>
@@ -381,6 +399,14 @@ $badgeStyles = BadgeStyles::all();
        href="<?= $page < $totalPages ? $q(['page' => $page + 1]) : '#' ?>">
         <i class="bi bi-chevron-right"></i>
     </a>
+    <?php endif; ?>
+
+    <a class="ks-page-btn<?= $showAll ? ' active' : '' ?>"
+       href="<?= $showAll ? $q(['perpage' => null, 'page' => null]) : $q(['perpage' => 'all', 'page' => null]) ?>"
+       title="<?= $showAll ? 'Revenir à la pagination' : 'Tout afficher' ?>">
+        <i class="bi bi-<?= $showAll ? 'grid' : 'infinity' ?>"></i>
+    </a>
+
 </nav>
 <?php endif; ?>
 

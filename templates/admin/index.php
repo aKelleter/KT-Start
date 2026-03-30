@@ -232,6 +232,47 @@ use App\Core\View;
     </div>
 </div>
 
+<!-- ── Paramètres ─────────────────────────────────────────────────────────── -->
+<section class="ks-admin-section mt-5" id="parametres">
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <h2 class="fs-5 fw-semibold mb-0">
+            <i class="bi bi-sliders me-2 text-muted"></i>Paramètres
+        </h2>
+    </div>
+
+    <div class="ks-admin-card p-4">
+        <form method="post" action="?action=admin_setting_update">
+            <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+
+            <div class="row align-items-end g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">
+                        Favoris par page
+                        <?php if (!empty($envPerPage)): ?>
+                            <span class="text-muted fw-normal small ms-1">
+                                (.env : <?= (int) $envPerPage ?>)
+                            </span>
+                        <?php endif; ?>
+                    </label>
+                    <input type="number" class="form-control" name="bookmarks_per_page"
+                           min="1" max="500"
+                           value="<?= (int) ($settings['bookmarks_per_page'] ?? $envPerPage ?? 24) ?>"
+                           required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-check-lg me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </div>
+            <div class="form-text mt-2">
+                La valeur en base de données prend le dessus sur <code>.env</code>.
+            </div>
+
+        </form>
+    </div>
+</section>
+
 <!-- ── Maintenance ────────────────────────────────────────────────────────── -->
 <section class="ks-admin-section mt-5" id="maintenance">
     <div class="d-flex align-items-center gap-2 mb-3">

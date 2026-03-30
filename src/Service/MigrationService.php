@@ -14,6 +14,15 @@ final class MigrationService
 {
     /** Schéma attendu : table → colonnes avec leur DDL */
     private const SCHEMA = [
+        'settings' => [
+            'create' => "
+                CREATE TABLE IF NOT EXISTS settings (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            ",
+            'columns' => [],
+        ],
         'users' => [
             'create' => "
                 CREATE TABLE IF NOT EXISTS users (

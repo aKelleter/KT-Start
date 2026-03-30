@@ -9,6 +9,7 @@ use App\Core\Flash;
 use App\Core\Response;
 use App\Core\View;
 use App\Repository\ListRepository;
+use App\Repository\SettingsRepository;
 use App\Repository\UserRepository;
 use App\Service\MigrationService;
 
@@ -28,15 +29,39 @@ final class AdminController
         $migrationLog = $_SESSION['_migration_log'] ?? null;
         unset($_SESSION['_migration_log']);
 
-        $listRepo = new ListRepository();
+        $listRepo     = new ListRepository();
+        $settingsRepo = new SettingsRepository();
         View::render('admin/index', [
             'users'         => (new UserRepository())->findAll(),
             'lists'         => $listRepo->findAllWithCount(),
             'defaultListId' => $listRepo->findDefault(),
+            'settings'      => $settingsRepo->all(),
+            'envPerPage'    => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
             'csrf'          => Csrf::token(),
             'flash'         => Flash::get(),
             'migrationLog'  => $migrationLog,
         ]);
+    }
+
+    public function settingUpdate(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin');
+        }
+
+        $perPage = (int) ($_POST['bookmarks_per_page'] ?? 0);
+        if ($perPage < 1 || $perPage > 500) {
+            Flash::set('danger', 'Valeur invalide (1–500).');
+            Response::redirect('?action=admin#parametres');
+        }
+
+        (new SettingsRepository())->set('bookmarks_per_page', (string) $perPage);
+
+        Flash::set('success', 'Paramètres enregistrés.');
+        Response::redirect('?action=admin#parametres');
     }
 
     public function runMigration(): void

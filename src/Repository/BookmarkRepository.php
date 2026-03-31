@@ -321,6 +321,51 @@ final class BookmarkRepository
         return $count;
     }
 
+    // ── Vérification des liens ────────────────────────────────────────────────
+
+    /** Retourne tous les favoris d'un utilisateur avec leur URL (pour vérification). */
+    public function findAllByUser(int $userId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT id, url, title, host, last_check_status, last_check_at FROM bookmarks WHERE user_id = :user_id ORDER BY position ASC, created_at DESC'
+        );
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    /** Met à jour le statut de vérification d'un favori. */
+    public function updateCheckStatus(int $id, string $status, string $checkedAt): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET last_check_status = :status, last_check_at = :checked_at WHERE id = :id'
+        );
+        $stmt->execute(['status' => $status, 'checked_at' => $checkedAt, 'id' => $id]);
+    }
+
+    /** Remet à zéro le statut de vérification de tous les favoris d'un utilisateur. */
+    public function resetCheckStatus(int $userId): int
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET last_check_status = NULL, last_check_at = NULL WHERE user_id = :user_id'
+        );
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->rowCount();
+    }
+
+    /** Supprime plusieurs favoris d'un utilisateur d'un coup. */
+    public function deleteMultiple(int $userId, array $ids): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = Database::connection()->prepare(
+            "DELETE FROM bookmarks WHERE user_id = ? AND id IN ($placeholders)"
+        );
+        $stmt->execute([$userId, ...$ids]);
+        return $stmt->rowCount();
+    }
+
     public function findByUrl(int $userId, string $url, ?int $excludeId = null): array|false
     {
         if ($excludeId !== null) {

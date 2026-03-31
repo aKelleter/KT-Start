@@ -61,7 +61,7 @@ L'interface d'administration est organisée en 6 sous-pages indépendantes acces
 
 - **Utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
-- **Paramètres** : nombre de favoris par page éditable (priorité DB → `.env` → 24)
+- **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
 - **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
@@ -79,6 +79,20 @@ L'interface d'administration est organisée en 6 sous-pages indépendantes acces
 - **Export favoris (v1)** : supprime les bookmarks et listes existants, réinitialise les séquences, réinsère les listes puis les bookmarks
 - **Backup complet (v2) — import normal** : crée les users/listes manquants (skip si existant), upsert les settings, ajoute les bookmarks
 - **Backup complet (v2) — Restauration complète** : purge toutes les tables, réinitialise les séquences, réinsère tout — session détruite, reconnexion requise
+
+### Vérification des liens
+
+Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
+
+- Vérifie chaque URL une par une via cURL (HEAD, fallback GET si 405)
+- Statuts : **OK** (2xx), **Redirigé** (301), **Inaccessible** (4xx/5xx), **Timeout** (erreur réseau)
+- Indicateurs visuels colorés sur les 3 vues (badges, tableau, liste)
+- Page rapport groupée par statut avec barre de progression en temps réel
+- Suppression en lot des liens morts
+- Réinitialisation des statuts en un clic
+- Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
+
+---
 
 ### Migration depuis l'ancienne version
 - Script `scripts/migrate_ini.php` — importe les favoris depuis les fichiers `.ini`
@@ -149,6 +163,9 @@ APP_URL=https://votre-domaine.com/
 DB_DATABASE=database/app.sqlite
 
 BOOKMARKS_PER_PAGE=24
+
+# Proxy pour la vérification des liens (optionnel)
+# CHECK_PROXY=http://proxy.example.com:3128
 ```
 
 ### Priorité de `BOOKMARKS_PER_PAGE`
@@ -156,6 +173,12 @@ BOOKMARKS_PER_PAGE=24
 1. **Base de données** (`settings.bookmarks_per_page`) — modifiable depuis Admin → Paramètres
 2. **`.env` / `.env.local`**
 3. **Défaut** : 24
+
+### Priorité de `CHECK_PROXY`
+
+1. **Base de données** (`settings.check_proxy`) — modifiable depuis Admin → Paramètres
+2. **`.env` / `.env.local`**
+3. **Défaut** : vide (pas de proxy)
 
 ---
 
@@ -222,6 +245,7 @@ KT-Start/
 │   └── Service/
 │       ├── ImportExportService.php     # Export v1/v2, import avec détection auto, restauration complète
 │       ├── MigrationService.php        # Migrations idempotentes
+│       ├── UrlCheckService.php         # Vérification accessibilité URL (HEAD/GET, proxy)
 │       └── UrlMetaService.php          # curl + DOMDocument → title/host/description
 ├── templates/
 │   ├── layout.php
@@ -269,6 +293,10 @@ KT-Start/
 | `bookmark_reorder` | POST | Auth | Réordonner (drag & drop, JSON) |
 | `bookmark_fetch_meta` | GET | Auth | Métadonnées d'une URL (JSON) |
 | `bookmark_check_duplicate` | GET | Auth | Vérifier doublon d'URL (JSON) |
+| `bookmark_links_report` | GET | Auth | Page rapport des liens |
+| `bookmark_check_single` | POST | Auth | Vérifier une URL (JSON) |
+| `bookmark_reset_status` | POST | Auth | Réinitialiser tous les statuts |
+| `bookmark_delete_dead` | POST | Auth | Supprimer les favoris sélectionnés |
 | `admin` | GET | Admin | Dashboard d'administration |
 | `admin_users` | GET | Admin | Page gestion utilisateurs |
 | `admin_lists` | GET | Admin | Page gestion listes |

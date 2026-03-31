@@ -51,8 +51,32 @@ use App\Core\View;
                 </button>
             </div>
         </div>
-        <div class="form-text mt-2">
+        <div class="form-text mt-2 mb-4">
             La valeur en base de données prend le dessus sur <code>.env</code>.
+        </div>
+
+        <hr class="my-3">
+
+        <div class="row align-items-center g-3">
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">
+                    Proxy HTTP pour la vérification des liens
+                    <?php if (!empty($envProxy)): ?>
+                        <span class="text-muted fw-normal small ms-1">
+                            (.env : <?= View::e($envProxy) ?>)
+                        </span>
+                    <?php endif; ?>
+                </label>
+                <input type="text" class="form-control" name="check_proxy"
+                       placeholder="http://proxy.example.com:3128"
+                       value="<?= View::e($settings['check_proxy'] ?? '') ?>">
+                <div class="form-text">Laisser vide pour désactiver le proxy.</div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
+                </button>
+            </div>
         </div>
 
     </form>

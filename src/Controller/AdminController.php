@@ -63,10 +63,11 @@ final class AdminController
         $this->requireAdmin();
         $settingsRepo = new SettingsRepository();
         View::render('admin/settings', [
-            'settings'   => $settingsRepo->all(),
-            'envPerPage' => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
-            'csrf'       => Csrf::token(),
-            'flash'      => Flash::get(),
+            'settings'    => $settingsRepo->all(),
+            'envPerPage'  => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
+            'envProxy'    => $_ENV['CHECK_PROXY'] ?? null,
+            'csrf'        => Csrf::token(),
+            'flash'       => Flash::get(),
         ]);
     }
 
@@ -109,7 +110,9 @@ final class AdminController
             Response::redirect('?action=admin_settings');
         }
 
-        (new SettingsRepository())->set('bookmarks_per_page', (string) $perPage);
+        $repo = new SettingsRepository();
+        $repo->set('bookmarks_per_page', (string) $perPage);
+        $repo->set('check_proxy', trim($_POST['check_proxy'] ?? ''));
 
         Flash::set('success', 'Paramètres enregistrés.');
         Response::redirect('?action=admin_settings');

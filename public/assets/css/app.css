@@ -863,3 +863,32 @@ body.app-body {
     transition: background .15s;
 }
 .ks-tag-cloud-reset:hover { background: rgba(0,0,0,.1); color: inherit; }
+
+/* ── Indicateurs statut des liens ──────────────────────────────────────── */
+.ks-link-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,.8);
+    z-index: 2;
+    pointer-events: none;
+}
+.ks-badge-thumb { position: relative; }
+
+.ks-link-dot--error   { background: #dc3545; box-shadow: 0 0 0 2px rgba(220,53,69,.3); }
+.ks-link-dot--timeout { background: #dc3545; box-shadow: 0 0 0 2px rgba(220,53,69,.3); }
+.ks-link-dot--redirect { background: #ffc107; box-shadow: 0 0 0 2px rgba(255,193,7,.3); }
+
+/* Vue tableau et liste compacte : point inline */
+.ks-compact-item .ks-link-dot,
+td .ks-link-dot {
+    position: static;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border: none;
+    flex-shrink: 0;
+}

@@ -182,7 +182,10 @@ $badgeStyles = BadgeStyles::all();
     <?php endif; ?>
 
     <?php if (!$readOnly): ?>
-    <button class="btn btn-sm btn-primary ms-auto"
+    <a href="?action=bookmark_links_report" class="btn btn-sm btn-outline-secondary" title="Vérifier les liens">
+        <i class="bi bi-link-45deg"></i>
+    </a>
+    <button class="btn btn-sm btn-primary"
             data-bs-toggle="modal" data-bs-target="#bookmarkModal"
             data-mode="add">
         <i class="bi bi-plus-lg me-1"></i>Ajouter
@@ -232,6 +235,10 @@ $badgeStyles = BadgeStyles::all();
             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
                 <div class="ks-badge-thumb" style="background:<?= $bg ?>">
                     <span><?= View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>
+                    <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                    <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?>"
+                          title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+                    <?php endif; ?>
                 </div>
             </a>
             <div class="ks-badge-footer">
@@ -294,11 +301,19 @@ $badgeStyles = BadgeStyles::all();
                     </div>
                 </td>
                 <td>
-                    <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
-                       class="fw-semibold text-decoration-none text-body">
-                        <?= View::e($bm['title'] ?: $bm['host']) ?>
-                    </a>
-                    <div class="text-muted small"><?= View::e($bm['host']) ?></div>
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                        <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?> flex-shrink-0"
+                              title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+                        <?php endif; ?>
+                        <div>
+                            <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
+                               class="fw-semibold text-decoration-none text-body">
+                                <?= View::e($bm['title'] ?: $bm['host']) ?>
+                            </a>
+                            <div class="text-muted small"><?= View::e($bm['host']) ?></div>
+                        </div>
+                    </div>
                 </td>
                 <td class="text-muted small"><?= View::e($bm['list_name'] ?? '') ?></td>
                 <td>
@@ -355,6 +370,10 @@ $badgeStyles = BadgeStyles::all();
             <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
             <?php endif; ?>
             <div class="ks-compact-dot" style="background:<?= $bg ?>"></div>
+            <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+            <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?>"
+                  title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+            <?php endif; ?>
             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
                class="ks-compact-title text-decoration-none text-body fw-semibold">
                 <?= View::e($bm['title'] ?: $bm['host']) ?>

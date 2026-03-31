@@ -79,7 +79,9 @@ final class MigrationService
                 'tags'        => 'ALTER TABLE bookmarks ADD COLUMN tags TEXT',
                 'visibility'  => "ALTER TABLE bookmarks ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'",
                 'list_id'     => 'ALTER TABLE bookmarks ADD COLUMN list_id INTEGER REFERENCES lists(id)',
-                'position'    => 'ALTER TABLE bookmarks ADD COLUMN position INTEGER DEFAULT 0',
+                'position'          => 'ALTER TABLE bookmarks ADD COLUMN position INTEGER DEFAULT 0',
+                'last_check_status' => 'ALTER TABLE bookmarks ADD COLUMN last_check_status TEXT',
+                'last_check_at'     => 'ALTER TABLE bookmarks ADD COLUMN last_check_at TEXT',
             ],
         ],
     ];

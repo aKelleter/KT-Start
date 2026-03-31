@@ -11,6 +11,7 @@ use App\Core\View;
 use App\Repository\BookmarkRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
+use App\Service\UrlCheckService;
 use App\Service\UrlMetaService;
 
 final class BookmarkController
@@ -260,6 +261,86 @@ final class BookmarkController
             'title'     => $bm['title'] ?: $bm['host'],
             'list_name' => $bm['list_name'] ?? null,
         ]);
+    }
+
+    public function linksReport(): void
+    {
+        $userId = (int) Auth::id();
+        $repo   = new BookmarkRepository();
+
+        View::render('bookmarks/links', [
+            'bookmarks' => $repo->findAllByUser($userId),
+            'csrf'      => Csrf::token(),
+            'flash'     => Flash::get(),
+        ]);
+    }
+
+    public function checkSingleLink(): void
+    {
+        header('Content-Type: application/json');
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return;
+        }
+
+        $id     = (int) ($_POST['id'] ?? 0);
+        $userId = (int) Auth::id();
+        $repo   = new BookmarkRepository();
+        $bm     = $repo->findById($id);
+
+        if (!$bm || (int) $bm['user_id'] !== $userId) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Favori introuvable']);
+            return;
+        }
+
+        $check = UrlCheckService::check($bm['url']);
+        $now   = date('Y-m-d H:i:s');
+        $repo->updateCheckStatus($id, $check['status'], $now);
+
+        echo json_encode([
+            'ok'         => true,
+            'id'         => $id,
+            'status'     => $check['status'],
+            'http_code'  => $check['http_code'],
+            'checked_at' => $now,
+        ]);
+    }
+
+    public function resetLinkStatus(): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=bookmark_links_report');
+        }
+
+        $count = (new BookmarkRepository())->resetCheckStatus((int) Auth::id());
+
+        Flash::set('success', "Statut de vérification réinitialisé ($count favori(s)).");
+        Response::redirect('?action=bookmark_links_report');
+    }
+
+    public function deleteDeadLinks(): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=bookmark_links_report');
+        }
+
+        $ids    = array_map('intval', (array) ($_POST['ids'] ?? []));
+        $userId = (int) Auth::id();
+
+        if (empty($ids)) {
+            Flash::set('warning', 'Aucun favori sélectionné.');
+            Response::redirect('?action=bookmark_links_report');
+        }
+
+        $count = (new BookmarkRepository())->deleteMultiple($userId, $ids);
+
+        Flash::set('success', "$count favori(s) supprimé(s).");
+        Response::redirect('?action=bookmark_links_report');
     }
 
     public function fetchMeta(): void

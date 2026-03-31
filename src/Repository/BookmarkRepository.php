@@ -187,7 +187,7 @@ final class BookmarkRepository
 
     // ── Tags ──────────────────────────────────────────────────────────────────
 
-    /** @return string[] */
+    /** @return array<string, int>  tag => count, trié par fréquence décroissante (user courant) */
     public function getAllTags(int $userId): array
     {
         $stmt = Database::connection()->prepare(
@@ -200,13 +200,149 @@ final class BookmarkRepository
             foreach (explode(',', $row['tags']) as $t) {
                 $t = trim($t);
                 if ($t !== '') {
-                    $tags[$t] = true;
+                    $tags[$t] = ($tags[$t] ?? 0) + 1;
                 }
             }
         }
 
-        $tags = array_keys($tags);
-        sort($tags);
+        arsort($tags); // fréquence décroissante
         return $tags;
+    }
+
+    /** @return array<string, int>  tag => count, tous utilisateurs, trié par fréquence décroissante */
+    public function getAllTagsAdmin(): array
+    {
+        $stmt = Database::connection()->query(
+            "SELECT tags FROM bookmarks WHERE tags IS NOT NULL AND tags != ''"
+        );
+
+        $tags = [];
+        foreach ($stmt->fetchAll() as $row) {
+            foreach (explode(',', $row['tags']) as $t) {
+                $t = trim($t);
+                if ($t !== '') {
+                    $tags[$t] = ($tags[$t] ?? 0) + 1;
+                }
+            }
+        }
+
+        arsort($tags);
+        return $tags;
+    }
+
+    /** Renomme un tag dans tous les favoris. Retourne le nombre de favoris modifiés. */
+    public function renameTag(string $old, string $new): int
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT id, tags FROM bookmarks WHERE (',' || tags || ',' LIKE :tag)"
+        );
+        $stmt->execute(['tag' => '%,' . $old . ',%']);
+        $rows = $stmt->fetchAll();
+
+        $update = Database::connection()->prepare(
+            'UPDATE bookmarks SET tags = :tags WHERE id = :id'
+        );
+
+        $count = 0;
+        foreach ($rows as $row) {
+            $tags = array_map('trim', explode(',', $row['tags']));
+            $tags = array_map(fn($t) => $t === $old ? $new : $t, $tags);
+            $tags = array_values(array_unique(array_filter($tags, fn($t) => $t !== '')));
+            $update->execute(['tags' => implode(',', $tags), 'id' => $row['id']]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Supprime tous les tags utilisés par un seul favori.
+     * Retourne le nombre de tags supprimés.
+     */
+    public function deleteTagsUsedOnce(): int
+    {
+        $stmt = Database::connection()->query(
+            "SELECT id, tags FROM bookmarks WHERE tags IS NOT NULL AND tags != ''"
+        );
+        $rows = $stmt->fetchAll();
+
+        // Compter la fréquence de chaque tag
+        $freq = [];
+        foreach ($rows as $row) {
+            foreach (array_map('trim', explode(',', $row['tags'])) as $t) {
+                if ($t !== '') {
+                    $freq[$t] = ($freq[$t] ?? 0) + 1;
+                }
+            }
+        }
+
+        $singles = array_keys(array_filter($freq, fn($c) => $c === 1));
+        if (empty($singles)) {
+            return 0;
+        }
+
+        $singlesSet = array_flip($singles);
+        $update     = Database::connection()->prepare(
+            'UPDATE bookmarks SET tags = :tags WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $tags    = array_map('trim', explode(',', $row['tags']));
+            $cleaned = array_values(array_filter($tags, fn($t) => $t !== '' && !isset($singlesSet[$t])));
+            if (count($cleaned) !== count(array_filter($tags, fn($t) => $t !== ''))) {
+                $update->execute(['tags' => implode(',', $cleaned), 'id' => $row['id']]);
+            }
+        }
+
+        return count($singles);
+    }
+
+    /** Supprime un tag de tous les favoris. Retourne le nombre de favoris modifiés. */
+    public function deleteTag(string $tag): int
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT id, tags FROM bookmarks WHERE (',' || tags || ',' LIKE :tag)"
+        );
+        $stmt->execute(['tag' => '%,' . $tag . ',%']);
+        $rows = $stmt->fetchAll();
+
+        $update = Database::connection()->prepare(
+            'UPDATE bookmarks SET tags = :tags WHERE id = :id'
+        );
+
+        $count = 0;
+        foreach ($rows as $row) {
+            $tags = array_map('trim', explode(',', $row['tags']));
+            $tags = array_values(array_filter($tags, fn($t) => $t !== '' && $t !== $tag));
+            $update->execute(['tags' => implode(',', $tags), 'id' => $row['id']]);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    public function findByUrl(int $userId, string $url, ?int $excludeId = null): array|false
+    {
+        if ($excludeId !== null) {
+            $stmt = Database::connection()->prepare("
+                SELECT b.id, b.title, b.host, l.name AS list_name
+                FROM bookmarks b
+                LEFT JOIN lists l ON l.id = b.list_id
+                WHERE b.user_id = :user_id AND b.url = :url AND b.id != :exclude
+                LIMIT 1
+            ");
+            $stmt->execute(['user_id' => $userId, 'url' => $url, 'exclude' => $excludeId]);
+        } else {
+            $stmt = Database::connection()->prepare("
+                SELECT b.id, b.title, b.host, l.name AS list_name
+                FROM bookmarks b
+                LEFT JOIN lists l ON l.id = b.list_id
+                WHERE b.user_id = :user_id AND b.url = :url
+                LIMIT 1
+            ");
+            $stmt->execute(['user_id' => $userId, 'url' => $url]);
+        }
+
+        return $stmt->fetch();
     }
 }

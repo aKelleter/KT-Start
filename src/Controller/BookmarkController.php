@@ -77,10 +77,14 @@ final class BookmarkController
         $defaultListId = $listRepo->findDefault();
 
         // list=0 → "Toutes" explicitement choisi (pas de filtre)
-        // list absente → appliquer la liste par défaut
+        // list absente → restaurer depuis la session, sinon liste par défaut
         $listRaw = isset($_GET['list']) && $_GET['list'] !== '' ? (int) $_GET['list'] : null;
         if ($listRaw !== null) {
+            $_SESSION['ktstart_list'] = $listRaw; // mémoriser le choix
             $listId = $listRaw === 0 ? null : $listRaw;
+        } elseif (array_key_exists('ktstart_list', $_SESSION)) {
+            $listRaw = (int) $_SESSION['ktstart_list'];
+            $listId  = $listRaw === 0 ? null : $listRaw;
         } else {
             $listId  = $defaultListId;
             $listRaw = $defaultListId; // pour construire les URLs de pagination
@@ -229,6 +233,33 @@ final class BookmarkController
         $repo->reorder((int) Auth::id(), $ids);
 
         echo json_encode(['ok' => true]);
+    }
+
+    public function checkDuplicate(): void
+    {
+        header('Content-Type: application/json');
+
+        $url       = trim($_GET['url'] ?? '');
+        $excludeId = isset($_GET['exclude_id']) && $_GET['exclude_id'] !== ''
+            ? (int) $_GET['exclude_id'] : null;
+
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            echo json_encode(['duplicate' => false]);
+            return;
+        }
+
+        $bm = (new BookmarkRepository())->findByUrl((int) Auth::id(), $url, $excludeId);
+
+        if (!$bm) {
+            echo json_encode(['duplicate' => false]);
+            return;
+        }
+
+        echo json_encode([
+            'duplicate' => true,
+            'title'     => $bm['title'] ?: $bm['host'],
+            'list_name' => $bm['list_name'] ?? null,
+        ]);
     }
 
     public function fetchMeta(): void

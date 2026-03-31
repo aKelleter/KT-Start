@@ -20,6 +20,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Gestion des favoris
 - Ajout d'un favori avec récupération automatique du titre, de l'hôte et de la description (via `UrlMetaService`)
+- **Détection de doublons d'URL** en temps réel lors de l'ajout ou de la modification
 - Modification et suppression, toutes les actions protégées par CSRF
 - Trois vues disponibles : **Badges**, **Tableau**, **Liste compacte**
 - Contrôle de la taille d'affichage des badges : 6 paliers XS → XXL, mémorisés dans `localStorage`
@@ -43,6 +44,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Tags multiples séparés par virgule sur chaque favori
 - Filtrage par tag via un clic sur n'importe quelle étiquette
 - Autocomplétion des tags existants dans le formulaire
+- **Nuage de tags** — collapse dans la barre d'outils, trié par fréquence, taille proportionnelle à l'usage
 
 ### Badges (style visuel)
 - 12 styles de couleur : `deepBlue`, `deepPurple`, `lightViolet`, `lightBlue`, `turquoise`, `lightGreen`, `lightOrange`, `deepOrange`, `red`, `pink`, `brown`, `grey`
@@ -55,9 +57,12 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Vue filtrée complète accessible après connexion
 
 ### Administration
-- **Gestion des utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
-- **Gestion des listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
-- **Paramètres applicatifs** : nombre de favoris par page éditable (priorité DB → `.env` → 24)
+L'interface d'administration est organisée en 6 sous-pages indépendantes accessibles depuis un dashboard central.
+
+- **Utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
+- **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
+- **Paramètres** : nombre de favoris par page éditable (priorité DB → `.env` → 24)
+- **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
 - **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
@@ -220,9 +225,16 @@ KT-Start/
 │       └── UrlMetaService.php          # curl + DOMDocument → title/host/description
 ├── templates/
 │   ├── layout.php
-│   ├── admin/index.php                 # Utilisateurs, listes, paramètres, maintenance
+│   ├── admin/
+│   │   ├── index.php                   # Dashboard 6 cartes de navigation
+│   │   ├── users.php                   # Gestion utilisateurs
+│   │   ├── lists.php                   # Gestion listes
+│   │   ├── settings.php                # Paramètres applicatifs
+│   │   ├── tags.php                    # Gestion tags (tous utilisateurs)
+│   │   ├── backup.php                  # Sauvegarde export/import
+│   │   └── maintenance.php             # Migration + journal
 │   ├── auth/login.php
-│   └── bookmarks/index.php             # 3 vues, drag & drop, pagination, tout afficher
+│   └── bookmarks/index.php             # 3 vues, drag & drop, pagination, nuage de tags, tout afficher
 ├── .env
 ├── .env.local
 ├── .env.local.example
@@ -256,7 +268,14 @@ KT-Start/
 | `bookmark_delete` | POST | Auth | Supprimer un favori |
 | `bookmark_reorder` | POST | Auth | Réordonner (drag & drop, JSON) |
 | `bookmark_fetch_meta` | GET | Auth | Métadonnées d'une URL (JSON) |
-| `admin` | GET | Admin | Dashboard administration |
+| `bookmark_check_duplicate` | GET | Auth | Vérifier doublon d'URL (JSON) |
+| `admin` | GET | Admin | Dashboard d'administration |
+| `admin_users` | GET | Admin | Page gestion utilisateurs |
+| `admin_lists` | GET | Admin | Page gestion listes |
+| `admin_settings` | GET | Admin | Page paramètres |
+| `admin_backup` | GET | Admin | Page sauvegarde |
+| `admin_maintenance` | GET | Admin | Page maintenance |
+| `admin_tags` | GET | Admin | Page gestion tags |
 | `admin_user_store` | POST | Admin | Créer un utilisateur |
 | `admin_user_update` | POST | Admin | Modifier un utilisateur |
 | `admin_user_delete` | POST | Admin | Supprimer un utilisateur |
@@ -266,6 +285,9 @@ KT-Start/
 | `admin_list_delete` | POST | Admin | Supprimer une liste |
 | `admin_setting_update` | POST | Admin | Mettre à jour les paramètres (DB) |
 | `admin_run_migration` | POST | Admin | Lancer la migration de BDD |
+| `admin_tag_rename` | POST | Admin | Renommer un tag (tous favoris) |
+| `admin_tag_delete` | POST | Admin | Supprimer un tag (tous favoris) |
+| `admin_tags_cleanup` | POST | Admin | Supprimer les tags utilisés une seule fois |
 | `admin_export` | GET | Admin | Télécharger l'export favoris (v1) |
 | `admin_export_full` | GET | Admin | Télécharger le backup complet (v2) |
 | `admin_import` | POST | Admin | Importer un fichier JSON (v1 ou v2) |

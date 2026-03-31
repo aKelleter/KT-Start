@@ -19,9 +19,9 @@ src/
 │   ├── BadgeStyles.php     # 12 styles de badge avec gradient() — deepBlue, turquoise, etc.
 │   └── Config.php          # Accès à $_ENV
 ├── Controller/
-│   ├── AdminController.php # index, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
+│   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
-│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta()
+│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate()
 ├── Core/
 │   ├── Auth.php            # Session : ktstart_session (≠ ktdrop_session), isAdmin()
 │   ├── Csrf.php
@@ -31,7 +31,7 @@ src/
 │   ├── Router.php          # Routes par ?action=xxx, non-auth → ?action=home
 │   └── View.php            # render(), e(), asset() → 'public/assets/...'
 ├── Repository/
-│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags()
+│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   └── UserRepository.php      # CRUD complet, emailExists()
@@ -90,12 +90,22 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_store` / `bookmark_update` / `bookmark_delete` (POST, auth)
 - `bookmark_reorder` (POST JSON, auth) → drag & drop SortableJS
 - `bookmark_fetch_meta` (GET, auth) → JSON {title, host, description}
-- `admin` (GET, admin) → page administration
+- `bookmark_check_duplicate` (GET, auth) → JSON {found, bookmark} — vérifie doublon URL avec exclude_id optionnel
+- `admin` (GET, admin) → dashboard avec 6 cartes de navigation
+- `admin_users` (GET, admin) → gestion utilisateurs
+- `admin_lists` (GET, admin) → gestion listes
+- `admin_settings` (GET, admin) → paramètres applicatifs
+- `admin_backup` (GET, admin) → sauvegarde (export/import)
+- `admin_maintenance` (GET, admin) → maintenance (migration + log)
+- `admin_tags` (GET, admin) → gestion des tags (renommer/supprimer, tous utilisateurs)
 - `admin_user_store` / `admin_user_update` / `admin_user_delete` (POST, admin)
 - `admin_list_store` / `admin_list_rename` / `admin_list_delete` (POST, admin)
 - `admin_list_set_default` (POST, admin) → toggle liste par défaut
 - `admin_setting_update` (POST, admin) → mise à jour table settings
 - `admin_run_migration` (POST, admin) → MigrationService, résultat en session flash
+- `admin_tag_rename` (POST, admin) → renomme un tag dans tous les favoris
+- `admin_tag_delete` (POST, admin) → supprime un tag de tous les favoris
+- `admin_tags_cleanup` (POST, admin) → supprime tous les tags utilisés par un seul favori
 - `admin_export` (GET, admin) → export favoris v1 (user courant), téléchargement JSON
 - `admin_export_full` (GET, admin) → backup complet v2 (toutes tables), téléchargement JSON
 - `admin_import` (POST, admin) → import v1 ou v2 selon `version` dans le fichier ; `full_restore=1` → purge toutes les tables + session_destroy + redirect login
@@ -123,10 +133,16 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - Pas de VirtualHost dédié
 
 ## Templates
-- `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, lien Admin (admin only, d-none d-md-inline-flex)
+- `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
-- `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", `$readOnly` pour vue publique
-- `templates/admin/index.php` — gestion utilisateurs (table + modal), listes (table + modal + bouton ⭐ défaut), paramètres (bookmarks_per_page), sauvegarde (export/import/restauration complète), maintenance (migration + log)
+- `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
+- `templates/admin/index.php` — dashboard 6 cartes de navigation
+- `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete)
+- `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
+- `templates/admin/settings.php` — paramètres (bookmarks_per_page)
+- `templates/admin/backup.php` — export v1/v2 + import + restauration complète
+- `templates/admin/maintenance.php` — migration runner + journal
+- `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
 
 ## Conventions CSS
 Fichier : `public/assets/css/app.css`
@@ -162,6 +178,10 @@ Fichier : `public/assets/css/app.css`
   - `badge_style` non validé à l'import (préservation des anciens styles hérités)
   - `is_default` exporté en v2 en objet `{name, is_default}`, restauré via `setDefault()` après création des listes
   - `sqlite_sequence` réinitialisée via `DELETE FROM sqlite_sequence WHERE name IN (...)` pour repartir à id=1
+- **Nuage de tags** : collapse Bootstrap `#tagCloud` dans la vue bookmarks, triés par fréquence décroissante (`arsort`), taille proportionnelle 0.78–1.6rem, max-height 140px + overflow-y auto
+- **Détection de doublons URL** : `bookmark_check_duplicate` → GET JSON `{found, bookmark}`, `findByUrl()` avec `exclude_id` pour le mode édition — alerte inline sous le champ URL en mode add/edit
+- **Persistance liste sélectionnée** : `$_SESSION['ktstart_list']` mémorisé à chaque sélection explicite de liste, restauré si retour sur `?action=bookmarks` sans paramètre `list`
+- **Tags cleanup** : `deleteTagsUsedOnce()` dans `BookmarkRepository` — supprime d'un coup tous les tags apparaissant dans un seul favori ; bouton "Nettoyer (N unique(s))" sur la page `admin_tags`
 
 ## Ce qui reste à faire (non implémenté)
 - Partage public par lien direct avec token (comme KT-Drop)

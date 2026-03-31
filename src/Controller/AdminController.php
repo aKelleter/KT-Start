@@ -8,6 +8,7 @@ use App\Core\Csrf;
 use App\Core\Flash;
 use App\Core\Response;
 use App\Core\View;
+use App\Repository\BookmarkRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
 use App\Repository\UserRepository;
@@ -26,25 +27,70 @@ final class AdminController
     public function index(): void
     {
         $this->requireAdmin();
-
-        $migrationLog = $_SESSION['_migration_log'] ?? null;
-        unset($_SESSION['_migration_log']);
-
-        $importResult = $_SESSION['_import_result'] ?? null;
-        unset($_SESSION['_import_result']);
-
-        $listRepo     = new ListRepository();
-        $settingsRepo = new SettingsRepository();
+        $tags = (new BookmarkRepository())->getAllTagsAdmin();
         View::render('admin/index', [
-            'users'         => (new UserRepository())->findAll(),
+            'userCount' => count((new UserRepository())->findAll()),
+            'listCount' => count((new ListRepository())->findAll()),
+            'tagCount'  => count($tags),
+            'flash'     => Flash::get(),
+        ]);
+    }
+
+    public function usersPage(): void
+    {
+        $this->requireAdmin();
+        View::render('admin/users', [
+            'users' => (new UserRepository())->findAll(),
+            'csrf'  => Csrf::token(),
+            'flash' => Flash::get(),
+        ]);
+    }
+
+    public function listsPage(): void
+    {
+        $this->requireAdmin();
+        $listRepo = new ListRepository();
+        View::render('admin/lists', [
             'lists'         => $listRepo->findAllWithCount(),
             'defaultListId' => $listRepo->findDefault(),
-            'settings'      => $settingsRepo->all(),
-            'envPerPage'    => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
             'csrf'          => Csrf::token(),
             'flash'         => Flash::get(),
-            'migrationLog'  => $migrationLog,
-            'importResult'  => $importResult,
+        ]);
+    }
+
+    public function settingsPage(): void
+    {
+        $this->requireAdmin();
+        $settingsRepo = new SettingsRepository();
+        View::render('admin/settings', [
+            'settings'   => $settingsRepo->all(),
+            'envPerPage' => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
+            'csrf'       => Csrf::token(),
+            'flash'      => Flash::get(),
+        ]);
+    }
+
+    public function backupPage(): void
+    {
+        $this->requireAdmin();
+        $importResult = $_SESSION['_import_result'] ?? null;
+        unset($_SESSION['_import_result']);
+        View::render('admin/backup', [
+            'csrf'         => Csrf::token(),
+            'flash'        => Flash::get(),
+            'importResult' => $importResult,
+        ]);
+    }
+
+    public function maintenancePage(): void
+    {
+        $this->requireAdmin();
+        $migrationLog = $_SESSION['_migration_log'] ?? null;
+        unset($_SESSION['_migration_log']);
+        View::render('admin/maintenance', [
+            'csrf'         => Csrf::token(),
+            'flash'        => Flash::get(),
+            'migrationLog' => $migrationLog,
         ]);
     }
 
@@ -54,19 +100,19 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_settings');
         }
 
         $perPage = (int) ($_POST['bookmarks_per_page'] ?? 0);
         if ($perPage < 1 || $perPage > 500) {
             Flash::set('danger', 'Valeur invalide (1–500).');
-            Response::redirect('?action=admin#parametres');
+            Response::redirect('?action=admin_settings');
         }
 
         (new SettingsRepository())->set('bookmarks_per_page', (string) $perPage);
 
         Flash::set('success', 'Paramètres enregistrés.');
-        Response::redirect('?action=admin#parametres');
+        Response::redirect('?action=admin_settings');
     }
 
     public function runMigration(): void
@@ -75,7 +121,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_maintenance');
         }
 
         try {
@@ -86,7 +132,87 @@ final class AdminController
             ];
         }
 
-        Response::redirect('?action=admin#maintenance');
+        Response::redirect('?action=admin_maintenance');
+    }
+
+    // ── Tags ─────────────────────────────────────────────────────────────────
+
+    public function tagsPage(): void
+    {
+        $this->requireAdmin();
+        View::render('admin/tags', [
+            'tags'  => (new BookmarkRepository())->getAllTagsAdmin(),
+            'csrf'  => Csrf::token(),
+            'flash' => Flash::get(),
+        ]);
+    }
+
+    public function tagRename(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        $old = trim($_POST['old'] ?? '');
+        $new = trim($_POST['new'] ?? '');
+
+        if ($old === '' || $new === '') {
+            Flash::set('danger', 'Les noms de tag ne peuvent pas être vides.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        if ($old === $new) {
+            Flash::set('danger', 'Le nouveau nom est identique à l\'ancien.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        $count = (new BookmarkRepository())->renameTag($old, $new);
+        Flash::set('success', "Tag « {$old} » renommé en « {$new} » — {$count} favori(s) mis à jour.");
+        Response::redirect('?action=admin_tags');
+    }
+
+    public function tagDelete(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        $tag = trim($_POST['tag'] ?? '');
+
+        if ($tag === '') {
+            Flash::set('danger', 'Tag invalide.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        $count = (new BookmarkRepository())->deleteTag($tag);
+        Flash::set('success', "Tag « {$tag} » supprimé de {$count} favori(s).");
+        Response::redirect('?action=admin_tags');
+    }
+
+    public function tagDeleteUnique(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_tags');
+        }
+
+        $count = (new BookmarkRepository())->deleteTagsUsedOnce();
+
+        if ($count === 0) {
+            Flash::set('success', 'Aucun tag unique à supprimer.');
+        } else {
+            Flash::set('success', "{$count} tag(s) uniques supprimés.");
+        }
+
+        Response::redirect('?action=admin_tags');
     }
 
     // ── Import / Export ───────────────────────────────────────────────────────
@@ -123,31 +249,31 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin#sauvegarde');
+            Response::redirect('?action=admin_backup');
         }
 
         $file = $_FILES['import_file'] ?? null;
 
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
             Flash::set('danger', 'Aucun fichier reçu ou erreur lors de l\'upload.');
-            Response::redirect('?action=admin#sauvegarde');
+            Response::redirect('?action=admin_backup');
         }
 
         if ($file['size'] > 10 * 1024 * 1024) {
             Flash::set('danger', 'Fichier trop volumineux (10 Mo max).');
-            Response::redirect('?action=admin#sauvegarde');
+            Response::redirect('?action=admin_backup');
         }
 
         $content = file_get_contents($file['tmp_name']);
         if ($content === false) {
             Flash::set('danger', 'Impossible de lire le fichier.');
-            Response::redirect('?action=admin#sauvegarde');
+            Response::redirect('?action=admin_backup');
         }
 
         $data = json_decode($content, true);
         if (!is_array($data)) {
             Flash::set('danger', 'Fichier JSON invalide.');
-            Response::redirect('?action=admin#sauvegarde');
+            Response::redirect('?action=admin_backup');
         }
 
         $fullRestore = isset($_POST['full_restore']) && $_POST['full_restore'] === '1';
@@ -163,7 +289,7 @@ final class AdminController
         }
 
         $_SESSION['_import_result'] = $result;
-        Response::redirect('?action=admin#sauvegarde');
+        Response::redirect('?action=admin_backup');
     }
 
     // ── Utilisateurs ─────────────────────────────────────────────────────────
@@ -174,7 +300,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $email    = trim($_POST['email'] ?? '');
@@ -183,19 +309,19 @@ final class AdminController
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             Flash::set('danger', 'Email invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         if (strlen($password) < 8) {
             Flash::set('danger', 'Le mot de passe doit faire au moins 8 caractères.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $repo = new UserRepository();
 
         if ($repo->emailExists($email)) {
             Flash::set('danger', 'Cet email est déjà utilisé.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $repo->create([
@@ -206,7 +332,7 @@ final class AdminController
         ]);
 
         Flash::set('success', 'Utilisateur créé.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_users');
     }
 
     public function userUpdate(): void
@@ -215,7 +341,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $id    = (int) ($_POST['id'] ?? 0);
@@ -224,19 +350,19 @@ final class AdminController
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             Flash::set('danger', 'Email invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $repo = new UserRepository();
 
         if (!$repo->findById($id)) {
             Flash::set('danger', 'Utilisateur introuvable.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         if ($repo->emailExists($email, $id)) {
             Flash::set('danger', 'Cet email est déjà utilisé.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $data = ['email' => $email, 'role' => $role];
@@ -245,7 +371,7 @@ final class AdminController
         if ($password !== '') {
             if (strlen($password) < 8) {
                 Flash::set('danger', 'Le mot de passe doit faire au moins 8 caractères.');
-                Response::redirect('?action=admin');
+                Response::redirect('?action=admin_users');
             }
             $data['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
         }
@@ -258,7 +384,7 @@ final class AdminController
         }
 
         Flash::set('success', 'Utilisateur mis à jour.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_users');
     }
 
     public function userDelete(): void
@@ -267,7 +393,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $id   = (int) ($_POST['id'] ?? 0);
@@ -275,7 +401,7 @@ final class AdminController
 
         if ($id === Auth::id()) {
             Flash::set('danger', 'Vous ne pouvez pas supprimer votre propre compte.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $user   = $repo->findById($id);
@@ -283,12 +409,12 @@ final class AdminController
 
         if ($user && $user['role'] === 'admin' && count($admins) <= 1) {
             Flash::set('danger', 'Impossible de supprimer le dernier administrateur.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_users');
         }
 
         $repo->delete($id);
         Flash::set('success', 'Utilisateur supprimé.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_users');
     }
 
     // ── Listes ───────────────────────────────────────────────────────────────
@@ -299,24 +425,24 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $name = trim($_POST['name'] ?? '');
         if ($name === '') {
             Flash::set('danger', 'Le nom est obligatoire.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $repo = new ListRepository();
         if ($repo->findByName($name)) {
             Flash::set('danger', 'Cette liste existe déjà.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $repo->create($name);
         Flash::set('success', 'Liste créée.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_lists');
     }
 
     public function listRename(): void
@@ -325,7 +451,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $id   = (int) ($_POST['id'] ?? 0);
@@ -333,7 +459,7 @@ final class AdminController
 
         if ($name === '') {
             Flash::set('danger', 'Le nom est obligatoire.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $repo     = new ListRepository();
@@ -341,12 +467,12 @@ final class AdminController
 
         if ($existing && (int) $existing['id'] !== $id) {
             Flash::set('danger', 'Ce nom est déjà utilisé.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $repo->rename($id, $name);
         Flash::set('success', 'Liste renommée.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_lists');
     }
 
     public function listSetDefault(): void
@@ -355,7 +481,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $id   = (int) ($_POST['id'] ?? 0);
@@ -363,7 +489,7 @@ final class AdminController
 
         if (!$repo->findById($id)) {
             Flash::set('danger', 'Liste introuvable.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         // Si la liste est déjà la liste par défaut, on la retire
@@ -375,7 +501,7 @@ final class AdminController
             Flash::set('success', 'Liste par défaut définie.');
         }
 
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_lists');
     }
 
     public function listDelete(): void
@@ -384,7 +510,7 @@ final class AdminController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $id   = (int) ($_POST['id'] ?? 0);
@@ -392,11 +518,11 @@ final class AdminController
 
         if (!$repo->findById($id)) {
             Flash::set('danger', 'Liste introuvable.');
-            Response::redirect('?action=admin');
+            Response::redirect('?action=admin_lists');
         }
 
         $repo->delete($id);
         Flash::set('success', 'Liste supprimée.');
-        Response::redirect('?action=admin');
+        Response::redirect('?action=admin_lists');
     }
 }

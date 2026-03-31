@@ -124,28 +124,13 @@ $badgeStyles = BadgeStyles::all();
         </div>
     </div>
 
-    <!-- Filtre tag -->
+    <!-- Nuage de tags (toggle) -->
     <?php if (!empty($allTags)): ?>
-    <div class="dropdown">
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $tag ? ' text-primary fw-semibold' : '' ?>"
-                data-bs-toggle="dropdown">
-            <i class="bi bi-tag me-1"></i><?= $tag ? View::e($tag) : 'Tag' ?>
-        </button>
-        <ul class="dropdown-menu" style="max-height:260px;overflow-y:auto">
-            <?php if ($tag): ?>
-                <li><a class="dropdown-item" href="<?= $q(['tag' => null]) ?>">— Tous</a></li>
-                <li><hr class="dropdown-divider"></li>
-            <?php endif; ?>
-            <?php foreach ($allTags as $t): ?>
-                <li>
-                    <a class="dropdown-item<?= $tag === $t ? ' active' : '' ?>"
-                       href="<?= $q(['tag' => $t, 'page' => null]) ?>">
-                        <?= View::e($t) ?>
-                    </a>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
+    <button class="btn btn-sm btn-outline-secondary<?= $tag ? ' text-primary fw-semibold' : '' ?>"
+            type="button" data-bs-toggle="collapse" data-bs-target="#tagCloud"
+            aria-expanded="<?= $tag ? 'true' : 'false' ?>">
+        <i class="bi bi-tags me-1"></i><?= $tag ? View::e($tag) : 'Tags' ?>
+    </button>
     <?php endif; ?>
 
     <!-- Taille des badges (vue badges uniquement) -->
@@ -204,6 +189,35 @@ $badgeStyles = BadgeStyles::all();
     </button>
     <?php endif; ?>
 </div>
+
+<!-- ── Nuage de tags ─────────────────────────────────────────────────────── -->
+<?php if (!empty($allTags)): ?>
+<?php
+    $counts = array_values($allTags);
+    $minC   = min($counts);
+    $maxC   = max($counts);
+    $range  = max($maxC - $minC, 1);
+?>
+<div class="collapse<?= $tag ? ' show' : '' ?>" id="tagCloud">
+    <div class="ks-tag-cloud">
+        <?php if ($tag): ?>
+        <a href="<?= $q(['tag' => null, 'page' => null]) ?>" class="ks-tag-cloud-reset">
+            <i class="bi bi-x-lg me-1"></i>Tous les tags
+        </a>
+        <?php endif; ?>
+        <?php foreach ($allTags as $t => $count):
+            $size = round(0.78 + ($count - $minC) / $range * 0.82, 2);
+        ?>
+        <a href="<?= $q(['tag' => $t, 'page' => null]) ?>"
+           class="ks-tag-cloud-item<?= $tag === $t ? ' active' : '' ?>"
+           style="font-size:<?= $size ?>rem"
+           title="<?= $count ?> favori<?= $count > 1 ? 's' : '' ?>">
+            <?= View::e($t) ?>
+        </a>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ── Vue Badges ─────────────────────────────────────────────────────────── -->
 <?php if ($view === 'badges'): ?>
@@ -442,6 +456,10 @@ $badgeStyles = BadgeStyles::all();
                         <div id="fetchSpinner" class="text-muted small mt-1 d-none">
                             <span class="spinner-border spinner-border-sm me-1"></span>Récupération…
                         </div>
+                        <div id="bmDuplicateAlert" class="alert alert-warning py-2 px-3 mt-2 small d-none mb-0" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Ce favori existe déjà : <strong id="bmDuplicateTitle"></strong><span id="bmDuplicateList" class="text-muted"></span>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -661,6 +679,26 @@ $badgeStyles = BadgeStyles::all();
             spinner.classList.add('d-none');
             this.disabled = false;
         }
+    });
+
+    // Duplicate check
+    document.getElementById('bmUrl').addEventListener('blur', async function () {
+        const url   = this.value.trim();
+        const alert = document.getElementById('bmDuplicateAlert');
+        alert.classList.add('d-none');
+        if (!url) return;
+
+        const excludeId = document.getElementById('bmId').value;
+        const params = '?action=bookmark_check_duplicate&url=' + encodeURIComponent(url)
+                     + (excludeId ? '&exclude_id=' + encodeURIComponent(excludeId) : '');
+        try {
+            const data = await fetch(params).then(r => r.json());
+            if (data.duplicate) {
+                document.getElementById('bmDuplicateTitle').textContent = data.title;
+                document.getElementById('bmDuplicateList').textContent  = data.list_name ? ' — ' + data.list_name : '';
+                alert.classList.remove('d-none');
+            }
+        } catch (e) { /* silencieux */ }
     });
 
     // Liste picker

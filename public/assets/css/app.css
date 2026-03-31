@@ -797,8 +797,69 @@ body.app-body {
     .ks-badge     { width: calc(50% - .4rem); }
     .ks-compact-title { max-width: 140px; }
     .ks-compact-host  { display: none; }
+    .ks-tag-cloud-item { font-size: .9rem !important; padding: .2em .55em; }
+    .ks-tag-cloud-reset { font-size: .85rem; }
 }
 
 @media (min-width: 576px) and (max-width: 767px) {
     .ks-badge { width: calc(33.33% - .5rem); }
 }
+
+/* ── Admin nav cards ─────────────────────────────────────────────────────── */
+.ks-admin-nav-card {
+    display: block;
+    background: var(--app-card);
+    border: 1.5px solid var(--app-border);
+    border-radius: 16px;
+    padding: 1.4rem 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    height: 100%;
+    transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.ks-admin-nav-card:hover {
+    border-color: var(--app-blue);
+    box-shadow: 0 4px 18px rgba(2,136,209,.12);
+    transform: translateY(-2px);
+    color: inherit;
+}
+
+/* ── Nuage de tags ───────────────────────────────────────────────────────── */
+.ks-tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .35rem .5rem;
+    padding: .75rem .25rem;
+    border-top: 1px solid rgba(0,0,0,.06);
+    margin-bottom: .75rem;
+    max-height: 140px;
+    overflow-y: auto;
+}
+
+.ks-tag-cloud-item {
+    color: var(--app-blue);
+    text-decoration: none;
+    background: rgba(2,136,209,.08);
+    border-radius: 6px;
+    padding: .05em .4em;
+    line-height: 1.5;
+    transition: background .15s, color .15s;
+}
+.ks-tag-cloud-item:hover,
+.ks-tag-cloud-item.active {
+    background: var(--app-blue);
+    color: #fff;
+}
+.ks-tag-cloud-item.active { font-weight: 600; }
+
+.ks-tag-cloud-reset {
+    font-size: .78rem;
+    color: var(--app-muted);
+    text-decoration: none;
+    background: rgba(0,0,0,.05);
+    border-radius: 6px;
+    padding: .1em .5em;
+    transition: background .15s;
+}
+.ks-tag-cloud-reset:hover { background: rgba(0,0,0,.1); color: inherit; }

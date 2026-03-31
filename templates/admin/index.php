@@ -83,4 +83,17 @@ use App\Core\View;
             <p class="text-muted small mb-0">Gérer les migrations et la structure de la base de données.</p>
         </a>
     </div>
+    <div class="col-sm-6 col-lg-4">
+        <a href="?action=bookmark_links_report" class="ks-admin-nav-card">
+            <div class="ks-admin-icon mb-3" style="background:rgba(234,88,12,.10);color:#ea580c">
+                <i class="bi bi-link-45deg"></i>
+            </div>
+            <p class="fw-semibold mb-1">Vérification des liens
+                <?php if ($deadLinkCount > 0): ?>
+                <span class="badge text-bg-danger fw-normal ms-1" style="font-size:.7rem"><?= $deadLinkCount ?></span>
+                <?php endif; ?>
+            </p>
+            <p class="text-muted small mb-0">Vérifier l'accessibilité des favoris et mettre à jour les redirections.</p>
+        </a>
+    </div>
 </div>

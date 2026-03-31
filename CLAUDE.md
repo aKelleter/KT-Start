@@ -31,7 +31,7 @@ src/
 │   ├── Router.php          # Routes par ?action=xxx, non-auth → ?action=home
 │   └── View.php            # render(), e(), asset() → 'public/assets/...'
 ├── Repository/
-│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple()
+│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   └── UserRepository.php      # CRUD complet, emailExists()
@@ -99,7 +99,7 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_reset_status` (POST, auth) → remet last_check_status/at à NULL pour tous les favoris du user
 - `bookmark_delete_dead` (POST, auth) → supprime une liste d'ids (favoris morts sélectionnés)
 - `bookmark_follow_redirect` (POST JSON, auth) → suit le 301 d'un favori, met à jour url/host en DB, remet last_check_status à NULL
-- `admin` (GET, admin) → dashboard avec 6 cartes de navigation
+- `admin` (GET, admin) → dashboard avec 7 cartes de navigation
 - `admin_users` (GET, admin) → gestion utilisateurs
 - `admin_lists` (GET, admin) → gestion listes
 - `admin_settings` (GET, admin) → paramètres applicatifs
@@ -144,7 +144,7 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
 - `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
-- `templates/admin/index.php` — dashboard 6 cartes de navigation
+- `templates/admin/index.php` — dashboard 7 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
 - `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page)
@@ -192,6 +192,7 @@ Fichier : `public/assets/css/app.css`
 - **Tags cleanup** : `deleteTagsUsedOnce()` dans `BookmarkRepository` — supprime d'un coup tous les tags apparaissant dans un seul favori ; bouton "Nettoyer (N unique(s))" sur la page `admin_tags`
 - **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action sticky distinctes (rouge morts, jaune redirigés)
 - **Mise à jour URL redirigées** : `UrlCheckService::getFinalUrl()` suit les redirections (`CURLOPT_FOLLOWLOCATION`, `CURLINFO_EFFECTIVE_URL`) ; `BookmarkRepository::updateUrl()` met à jour url + host et remet last_check_status à NULL ; endpoint `bookmark_follow_redirect` traite un favori à la fois via JS fetch
+- **Dashboard admin — liens morts** : `BookmarkRepository::countDeadLinksAll()` compte les favoris en statut `error` ou `timeout` tous utilisateurs confondus ; `$deadLinkCount` passé au template ; badge rouge affiché sur la carte "Vérification des liens" si > 0
 - **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage
 
 ## Ce qui reste à faire (non implémenté)

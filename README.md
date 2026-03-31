@@ -57,12 +57,13 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Vue filtrée complète accessible après connexion
 
 ### Administration
-L'interface d'administration est organisée en 6 sous-pages indépendantes accessibles depuis un dashboard central.
+L'interface d'administration est organisée en 7 sous-pages indépendantes accessibles depuis un dashboard central.
 
 - **Utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
 - **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
+- **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
 - **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`

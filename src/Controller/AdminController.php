@@ -27,12 +27,14 @@ final class AdminController
     public function index(): void
     {
         $this->requireAdmin();
-        $tags = (new BookmarkRepository())->getAllTagsAdmin();
+        $bmRepo = new BookmarkRepository();
+        $tags   = $bmRepo->getAllTagsAdmin();
         View::render('admin/index', [
-            'userCount' => count((new UserRepository())->findAll()),
-            'listCount' => count((new ListRepository())->findAll()),
-            'tagCount'  => count($tags),
-            'flash'     => Flash::get(),
+            'userCount'     => count((new UserRepository())->findAll()),
+            'listCount'     => count((new ListRepository())->findAll()),
+            'tagCount'      => count($tags),
+            'deadLinkCount' => $bmRepo->countDeadLinksAll(),
+            'flash'         => Flash::get(),
         ]);
     }
 

@@ -352,6 +352,15 @@ final class BookmarkRepository
         return $stmt->rowCount();
     }
 
+    /** Compte les favoris dont le statut est 'error' ou 'timeout' (tous utilisateurs). */
+    public function countDeadLinksAll(): int
+    {
+        $stmt = Database::connection()->query(
+            "SELECT COUNT(*) FROM bookmarks WHERE last_check_status IN ('error', 'timeout')"
+        );
+        return (int) $stmt->fetchColumn();
+    }
+
     /** Met à jour l'URL et le host d'un favori et remet le statut de vérification à NULL. */
     public function updateUrl(int $id, int $userId, string $url, string $host): bool
     {

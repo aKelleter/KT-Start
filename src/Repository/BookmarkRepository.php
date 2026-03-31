@@ -56,11 +56,12 @@ final class BookmarkRepository
     private function orderBy(string $sort): string
     {
         return match ($sort) {
-            'title'     => 'LOWER(b.title) ASC',
-            'host'      => 'LOWER(b.host) ASC',
-            'date_asc'  => 'b.created_at ASC',
-            'date_desc' => 'b.created_at DESC',
-            default     => 'b.position ASC, b.created_at DESC',
+            'title'      => 'LOWER(b.title) ASC',
+            'host'       => 'LOWER(b.host) ASC',
+            'badge_text' => 'LOWER(b.badge_text) ASC',
+            'date_asc'   => 'b.created_at ASC',
+            'date_desc'  => 'b.created_at DESC',
+            default      => 'b.position ASC, b.created_at DESC',
         };
     }
 

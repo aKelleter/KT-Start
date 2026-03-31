@@ -19,7 +19,7 @@ src/
 │   ├── BadgeStyles.php     # 12 styles de badge avec gradient() — deepBlue, turquoise, etc.
 │   └── Config.php          # Accès à $_ENV
 ├── Controller/
-│   ├── AdminController.php # index, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration
+│   ├── AdminController.php # index, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
 │   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta()
 ├── Core/
@@ -36,6 +36,7 @@ src/
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   └── UserRepository.php      # CRUD complet, emailExists()
 └── Service/
+    ├── ImportExportService.php # export() v1 favoris, exportFull() v2 backup, import() détection auto v1/v2
     ├── MigrationService.php    # Migrations idempotentes : PRAGMA + ALTER TABLE ADD COLUMN
     └── UrlMetaService.php      # curl + DOMDocument → title/host/description
 ```
@@ -95,6 +96,9 @@ Toutes les routes passent par `?action=xxx` :
 - `admin_list_set_default` (POST, admin) → toggle liste par défaut
 - `admin_setting_update` (POST, admin) → mise à jour table settings
 - `admin_run_migration` (POST, admin) → MigrationService, résultat en session flash
+- `admin_export` (GET, admin) → export favoris v1 (user courant), téléchargement JSON
+- `admin_export_full` (GET, admin) → backup complet v2 (toutes tables), téléchargement JSON
+- `admin_import` (POST, admin) → import v1 ou v2 selon `version` dans le fichier ; `full_restore=1` → purge toutes les tables + session_destroy + redirect login
 
 ## Environnement
 - `.env` — config de base, commité
@@ -122,7 +126,7 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, lien Admin (admin only, d-none d-md-inline-flex)
 - `templates/auth/login.php`
 - `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", `$readOnly` pour vue publique
-- `templates/admin/index.php` — gestion utilisateurs (table + modal), listes (table + modal + bouton ⭐ défaut), paramètres (bookmarks_per_page), maintenance (migration + log)
+- `templates/admin/index.php` — gestion utilisateurs (table + modal), listes (table + modal + bouton ⭐ défaut), paramètres (bookmarks_per_page), sauvegarde (export/import/restauration complète), maintenance (migration + log)
 
 ## Conventions CSS
 Fichier : `public/assets/css/app.css`
@@ -151,10 +155,16 @@ Fichier : `public/assets/css/app.css`
 - **Compteur** : affiche `X / Y favoris` quand X (page courante) < Y (total filtré), sinon juste `Y favoris`
 - **Priorité bookmarks_per_page** : DB (`settings.bookmarks_per_page`) → `$_ENV['BOOKMARKS_PER_PAGE']` → 24
 - **SettingsRepository** : utilise `INSERT ... ON CONFLICT(key) DO UPDATE` (upsert SQLite) — `get()` retourne `''` si table absente (try/catch)
+- **Tri badge_text** : `orderBy()` dans `BookmarkRepository` — cas `badge_text` → `LOWER(b.badge_text) ASC`
+- **Import/Export** : `ImportExportService` — deux formats JSON :
+  - v1 (`ktstart-bookmarks-*.json`) : lists + bookmarks user courant — à l'import : DELETE bookmarks (user) + DELETE lists + reset `sqlite_sequence` → réinsère
+  - v2 (`ktstart-backup-*.json`) : users + settings + lists (avec `is_default`) + bookmarks tous users — import normal = merge ; `full_restore=1` = purge totale + reset `sqlite_sequence` + session_destroy
+  - `badge_style` non validé à l'import (préservation des anciens styles hérités)
+  - `is_default` exporté en v2 en objet `{name, is_default}`, restauré via `setDefault()` après création des listes
+  - `sqlite_sequence` réinitialisée via `DELETE FROM sqlite_sequence WHERE name IN (...)` pour repartir à id=1
 
 ## Ce qui reste à faire (non implémenté)
 - Partage public par lien direct avec token (comme KT-Drop)
 - Page de statistiques (répartition par liste, tag, visibilité)
-- Import/export CSV ou JSON des favoris
 - Vérification automatique des favoris inaccessibles (lien mort)
 - Rôle `editor` (multi-utilisateurs sans accès admin)

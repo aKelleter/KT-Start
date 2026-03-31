@@ -44,7 +44,7 @@ $appUpdate  = Config::get('APP_UPDATE', '');
                         <?= View::e(Auth::user()['email'] ?? '') ?>
                     </span>
                     <?php if (Auth::isAdmin()): ?>
-                    <a href="?action=admin" class="btn btn-outline-blue btn-sm d-none d-md-inline-flex">
+                    <a href="?action=admin" class="btn btn-outline-blue btn-sm">
                         <i class="bi bi-gear me-1"></i>Admin
                     </a>
                     <?php endif; ?>

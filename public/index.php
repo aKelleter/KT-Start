@@ -91,6 +91,9 @@ $router->post('admin_list_set_default', [AdminController::class, 'listSetDefault
 $router->post('admin_list_delete',      [AdminController::class, 'listDelete']);
 $router->post('admin_setting_update', [AdminController::class, 'settingUpdate']);
 $router->post('admin_run_migration', [AdminController::class, 'runMigration']);
+$router->get('admin_export',         [AdminController::class, 'exportBookmarks']);
+$router->get('admin_export_full',    [AdminController::class, 'exportFull']);
+$router->post('admin_import',        [AdminController::class, 'importBookmarks']);
 
 $action = $_GET['action'] ?? 'home';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

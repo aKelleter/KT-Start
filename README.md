@@ -24,7 +24,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Trois vues disponibles : **Badges**, **Tableau**, **Liste compacte**
 - Contrôle de la taille d'affichage des badges : 6 paliers XS → XXL, mémorisés dans `localStorage`
 - **Tri par glisser-déposer** (SortableJS) en mode vue Badges, tri par position
-- Tri par colonne : position, titre, hôte, date (croissant/décroissant)
+- Tri par colonne : position, titre, hôte, **texte de badge**, date (croissant/décroissant)
 - **Recherche full-text** sur titre, hôte, URL, description, tags et texte de badge
 - **Pagination configurable** — nombre de favoris par page éditable depuis l'administration
 - **Bouton "tout afficher"** (∞) pour désactiver la pagination à la volée
@@ -59,7 +59,21 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - **Gestion des listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
 - **Paramètres applicatifs** : nombre de favoris par page éditable (priorité DB → `.env` → 24)
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
+- **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
+
+### Sauvegarde et restauration
+
+| Action | Fichier produit | Contenu |
+|---|---|---|
+| **Backup complet** | `ktstart-backup-YYYYMMDD-HHmmss.json` | users + settings + lists (avec liste par défaut) + bookmarks (tous utilisateurs) |
+| **Export favoris** | `ktstart-bookmarks-YYYYMMDD-HHmmss.json` | lists + bookmarks (utilisateur courant) — portable entre instances |
+
+**Import** (détection automatique du format v1/v2) :
+
+- **Export favoris (v1)** : supprime les bookmarks et listes existants, réinitialise les séquences, réinsère les listes puis les bookmarks
+- **Backup complet (v2) — import normal** : crée les users/listes manquants (skip si existant), upsert les settings, ajoute les bookmarks
+- **Backup complet (v2) — Restauration complète** : purge toutes les tables, réinitialise les séquences, réinsère tout — session détruite, reconnexion requise
 
 ### Migration depuis l'ancienne version
 - Script `scripts/migrate_ini.php` — importe les favoris depuis les fichiers `.ini`
@@ -201,6 +215,7 @@ KT-Start/
 │   │   ├── SettingsRepository.php      # get, set, all — table settings clé/valeur
 │   │   └── UserRepository.php          # CRUD utilisateurs
 │   └── Service/
+│       ├── ImportExportService.php     # Export v1/v2, import avec détection auto, restauration complète
 │       ├── MigrationService.php        # Migrations idempotentes
 │       └── UrlMetaService.php          # curl + DOMDocument → title/host/description
 ├── templates/
@@ -251,6 +266,9 @@ KT-Start/
 | `admin_list_delete` | POST | Admin | Supprimer une liste |
 | `admin_setting_update` | POST | Admin | Mettre à jour les paramètres (DB) |
 | `admin_run_migration` | POST | Admin | Lancer la migration de BDD |
+| `admin_export` | GET | Admin | Télécharger l'export favoris (v1) |
+| `admin_export_full` | GET | Admin | Télécharger le backup complet (v2) |
+| `admin_import` | POST | Admin | Importer un fichier JSON (v1 ou v2) |
 
 ---
 
@@ -258,6 +276,5 @@ KT-Start/
 
 - Partage public par lien direct avec token
 - Page de statistiques (répartition par liste, tag, visibilité)
-- Import/export CSV ou JSON des favoris
 - Notifications de favoris expirés ou inaccessibles
 - Rôle `editor` (multi-utilisateurs sans accès admin)

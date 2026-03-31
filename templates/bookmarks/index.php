@@ -70,11 +70,12 @@ $badgeStyles = BadgeStyles::all();
         </button>
         <ul class="dropdown-menu">
             <?php foreach ([
-                'position'  => 'Position',
-                'title'     => 'Titre A→Z',
-                'host'      => 'Domaine A→Z',
-                'date_desc' => 'Plus récent',
-                'date_asc'  => 'Plus ancien',
+                'position'   => 'Position',
+                'title'      => 'Titre A→Z',
+                'host'       => 'Domaine A→Z',
+                'badge_text' => 'Badge A→Z',
+                'date_desc'  => 'Plus récent',
+                'date_asc'   => 'Plus ancien',
             ] as $key => $label): ?>
                 <li>
                     <a class="dropdown-item<?= $sort === $key ? ' active' : '' ?>"

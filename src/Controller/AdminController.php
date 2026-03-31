@@ -11,6 +11,7 @@ use App\Core\View;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
 use App\Repository\UserRepository;
+use App\Service\ImportExportService;
 use App\Service\MigrationService;
 
 final class AdminController
@@ -29,6 +30,9 @@ final class AdminController
         $migrationLog = $_SESSION['_migration_log'] ?? null;
         unset($_SESSION['_migration_log']);
 
+        $importResult = $_SESSION['_import_result'] ?? null;
+        unset($_SESSION['_import_result']);
+
         $listRepo     = new ListRepository();
         $settingsRepo = new SettingsRepository();
         View::render('admin/index', [
@@ -40,6 +44,7 @@ final class AdminController
             'csrf'          => Csrf::token(),
             'flash'         => Flash::get(),
             'migrationLog'  => $migrationLog,
+            'importResult'  => $importResult,
         ]);
     }
 
@@ -82,6 +87,83 @@ final class AdminController
         }
 
         Response::redirect('?action=admin#maintenance');
+    }
+
+    // ── Import / Export ───────────────────────────────────────────────────────
+
+    public function exportBookmarks(): void
+    {
+        $this->requireAdmin();
+
+        $data = (new ImportExportService())->export(Auth::id());
+        $this->sendJson($data, 'ktstart-bookmarks-' . date('Ymd-His') . '.json');
+    }
+
+    public function exportFull(): void
+    {
+        $this->requireAdmin();
+
+        $data = (new ImportExportService())->exportFull();
+        $this->sendJson($data, 'ktstart-backup-' . date('Ymd-His') . '.json');
+    }
+
+    private function sendJson(array $data, string $filename): never
+    {
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($json));
+        echo $json;
+        exit;
+    }
+
+    public function importBookmarks(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin#sauvegarde');
+        }
+
+        $file = $_FILES['import_file'] ?? null;
+
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            Flash::set('danger', 'Aucun fichier reçu ou erreur lors de l\'upload.');
+            Response::redirect('?action=admin#sauvegarde');
+        }
+
+        if ($file['size'] > 10 * 1024 * 1024) {
+            Flash::set('danger', 'Fichier trop volumineux (10 Mo max).');
+            Response::redirect('?action=admin#sauvegarde');
+        }
+
+        $content = file_get_contents($file['tmp_name']);
+        if ($content === false) {
+            Flash::set('danger', 'Impossible de lire le fichier.');
+            Response::redirect('?action=admin#sauvegarde');
+        }
+
+        $data = json_decode($content, true);
+        if (!is_array($data)) {
+            Flash::set('danger', 'Fichier JSON invalide.');
+            Response::redirect('?action=admin#sauvegarde');
+        }
+
+        $fullRestore = isset($_POST['full_restore']) && $_POST['full_restore'] === '1';
+        $result      = (new ImportExportService())->import($data, Auth::id(), $fullRestore);
+
+        if ($fullRestore) {
+            // La session est obsolète (user_id potentiellement différent après purge)
+            $imported = $result['imported'];
+            session_destroy();
+            session_start();
+            Flash::set('success', "Restauration complète effectuée — {$imported} favori(s) restauré(s). Veuillez vous reconnecter.");
+            Response::redirect('?action=login');
+        }
+
+        $_SESSION['_import_result'] = $result;
+        Response::redirect('?action=admin#sauvegarde');
     }
 
     // ── Utilisateurs ─────────────────────────────────────────────────────────

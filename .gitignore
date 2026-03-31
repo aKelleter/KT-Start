@@ -1,4 +1,4 @@
 vendor/
 .env.local
-database/app.sqlite
+database/*.sqlite
 storage/log/*.log

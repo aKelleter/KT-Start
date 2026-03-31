@@ -7,18 +7,18 @@ use App\Core\View;
 /** @var array|null $flash */
 
 // Grouper par statut
-$byStatus = ['error' => [], 'redirect' => [], 'timeout' => [], 'ok' => [], null => []];
+$byStatus = ['error' => [], 'redirect' => [], 'timeout' => [], 'ok' => [], '' => []];
 foreach ($bookmarks as $bm) {
-    $s = $bm['last_check_status'];
+    $s = (string) ($bm['last_check_status'] ?? '');
     if (!array_key_exists($s, $byStatus)) {
-        $s = null;
+        $s = '';
     }
     $byStatus[$s][] = $bm;
 }
 
 $deadCount     = count($byStatus['error']) + count($byStatus['timeout']);
 $redirectCount = count($byStatus['redirect']);
-$neverChecked  = count($byStatus[null]);
+$neverChecked  = count($byStatus['']);
 $total         = count($bookmarks);
 ?>
 
@@ -104,7 +104,7 @@ $total         = count($bookmarks);
         'timeout'  => ['label' => 'Timeout / Hors ligne',      'icon' => 'bi-wifi-off',       'color' => 'text-danger',  'bg' => 'table-danger'],
         'redirect' => ['label' => 'Redirigés (301)',            'icon' => 'bi-arrow-right-circle-fill', 'color' => 'text-warning', 'bg' => 'table-warning'],
         'ok'       => ['label' => 'Accessibles',                'icon' => 'bi-check-circle-fill', 'color' => 'text-success', 'bg' => ''],
-        null       => ['label' => 'Non vérifiés',               'icon' => 'bi-question-circle', 'color' => 'text-secondary', 'bg' => ''],
+        ''         => ['label' => 'Non vérifiés',               'icon' => 'bi-question-circle', 'color' => 'text-secondary', 'bg' => ''],
     ];
     ?>
 

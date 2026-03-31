@@ -84,7 +84,8 @@ $router->post('bookmark_reorder',    [BookmarkController::class, 'reorder']);
 $router->get('bookmark_links_report',    [BookmarkController::class, 'linksReport']);
 $router->post('bookmark_check_single',  [BookmarkController::class, 'checkSingleLink']);
 $router->post('bookmark_reset_status',  [BookmarkController::class, 'resetLinkStatus']);
-$router->post('bookmark_delete_dead',   [BookmarkController::class, 'deleteDeadLinks']);
+$router->post('bookmark_delete_dead',      [BookmarkController::class, 'deleteDeadLinks']);
+$router->post('bookmark_follow_redirect', [BookmarkController::class, 'followRedirect']);
 
 $router->get('admin',               [AdminController::class, 'index']);
 $router->get('admin_users',       [AdminController::class, 'usersPage']);

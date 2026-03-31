@@ -322,6 +322,45 @@ final class BookmarkController
         Response::redirect('?action=bookmark_links_report');
     }
 
+    public function followRedirect(): void
+    {
+        header('Content-Type: application/json');
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return;
+        }
+
+        $id     = (int) ($_POST['id'] ?? 0);
+        $userId = (int) Auth::id();
+        $repo   = new BookmarkRepository();
+        $bm     = $repo->findById($id);
+
+        if (!$bm || (int) $bm['user_id'] !== $userId) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Favori introuvable']);
+            return;
+        }
+
+        $finalUrl = UrlCheckService::getFinalUrl($bm['url']);
+
+        if ($finalUrl === null) {
+            echo json_encode(['ok' => false, 'error' => 'Impossible de suivre la redirection']);
+            return;
+        }
+
+        $host = (string) parse_url($finalUrl, PHP_URL_HOST);
+        $repo->updateUrl($id, $userId, $finalUrl, $host);
+
+        echo json_encode([
+            'ok'       => true,
+            'id'       => $id,
+            'new_url'  => $finalUrl,
+            'new_host' => $host,
+        ]);
+    }
+
     public function deleteDeadLinks(): void
     {
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {

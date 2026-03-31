@@ -21,7 +21,7 @@ src/
 ├── Controller/
 │   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
-│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus()
+│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect()
 ├── Core/
 │   ├── Auth.php            # Session : ktstart_session (≠ ktdrop_session), isAdmin()
 │   ├── Csrf.php
@@ -31,14 +31,14 @@ src/
 │   ├── Router.php          # Routes par ?action=xxx, non-auth → ?action=home
 │   └── View.php            # render(), e(), asset() → 'public/assets/...'
 ├── Repository/
-│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), deleteMultiple()
+│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   └── UserRepository.php      # CRUD complet, emailExists()
 └── Service/
     ├── ImportExportService.php # export() v1 favoris, exportFull() v2 backup, import() détection auto v1/v2
     ├── MigrationService.php    # Migrations idempotentes : PRAGMA + ALTER TABLE ADD COLUMN
-    ├── UrlCheckService.php     # check() HEAD/GET cURL, statuts ok/redirect/error/timeout, proxy DB→.env
+    ├── UrlCheckService.php     # check() HEAD/GET cURL, statuts ok/redirect/error/timeout, getFinalUrl() suit les redirections, proxy DB→.env
     └── UrlMetaService.php      # curl + DOMDocument → title/host/description
 ```
 
@@ -98,6 +98,7 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_check_single` (POST, auth) → JSON — vérifie une seule URL, met à jour last_check_status/at
 - `bookmark_reset_status` (POST, auth) → remet last_check_status/at à NULL pour tous les favoris du user
 - `bookmark_delete_dead` (POST, auth) → supprime une liste d'ids (favoris morts sélectionnés)
+- `bookmark_follow_redirect` (POST JSON, auth) → suit le 301 d'un favori, met à jour url/host en DB, remet last_check_status à NULL
 - `admin` (GET, admin) → dashboard avec 6 cartes de navigation
 - `admin_users` (GET, admin) → gestion utilisateurs
 - `admin_lists` (GET, admin) → gestion listes
@@ -189,7 +190,8 @@ Fichier : `public/assets/css/app.css`
 - **Détection de doublons URL** : `bookmark_check_duplicate` → GET JSON `{found, bookmark}`, `findByUrl()` avec `exclude_id` pour le mode édition — alerte inline sous le champ URL en mode add/edit
 - **Persistance liste sélectionnée** : `$_SESSION['ktstart_list']` mémorisé à chaque sélection explicite de liste, restauré si retour sur `?action=bookmarks` sans paramètre `list`
 - **Tags cleanup** : `deleteTagsUsedOnce()` dans `BookmarkRepository` — supprime d'un coup tous les tags apparaissant dans un seul favori ; bouton "Nettoyer (N unique(s))" sur la page `admin_tags`
-- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues ; rapport groupé par statut avec suppression en lot et réinitialisation
+- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action sticky distinctes (rouge morts, jaune redirigés)
+- **Mise à jour URL redirigées** : `UrlCheckService::getFinalUrl()` suit les redirections (`CURLOPT_FOLLOWLOCATION`, `CURLINFO_EFFECTIVE_URL`) ; `BookmarkRepository::updateUrl()` met à jour url + host et remet last_check_status à NULL ; endpoint `bookmark_follow_redirect` traite un favori à la fois via JS fetch
 - **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage
 
 ## Ce qui reste à faire (non implémenté)

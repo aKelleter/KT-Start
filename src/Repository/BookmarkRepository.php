@@ -352,6 +352,16 @@ final class BookmarkRepository
         return $stmt->rowCount();
     }
 
+    /** Met à jour l'URL et le host d'un favori et remet le statut de vérification à NULL. */
+    public function updateUrl(int $id, int $userId, string $url, string $host): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET url = :url, host = :host, last_check_status = NULL, last_check_at = NULL WHERE id = :id AND user_id = :user_id'
+        );
+        $stmt->execute(['url' => $url, 'host' => $host, 'id' => $id, 'user_id' => $userId]);
+        return $stmt->rowCount() > 0;
+    }
+
     /** Supprime plusieurs favoris d'un utilisateur d'un coup. */
     public function deleteMultiple(int $userId, array $ids): int
     {

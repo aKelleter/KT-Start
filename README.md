@@ -88,7 +88,9 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 - Statuts : **OK** (2xx), **Redirigé** (301), **Inaccessible** (4xx/5xx), **Timeout** (erreur réseau)
 - Indicateurs visuels colorés sur les 3 vues (badges, tableau, liste)
 - Page rapport groupée par statut avec barre de progression en temps réel
-- Suppression en lot des liens morts
+- **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
+- Suppression en lot des liens morts (inaccessibles et timeouts)
+- Barres d'action sticky pour la sélection en lot (rouge pour les morts, jaune pour les redirigés)
 - Réinitialisation des statuts en un clic
 - Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
 
@@ -296,7 +298,8 @@ KT-Start/
 | `bookmark_links_report` | GET | Auth | Page rapport des liens |
 | `bookmark_check_single` | POST | Auth | Vérifier une URL (JSON) |
 | `bookmark_reset_status` | POST | Auth | Réinitialiser tous les statuts |
-| `bookmark_delete_dead` | POST | Auth | Supprimer les favoris sélectionnés |
+| `bookmark_delete_dead` | POST | Auth | Supprimer les favoris morts sélectionnés |
+| `bookmark_follow_redirect` | POST | Auth | Mettre à jour l'URL finale d'un favori redirigé (JSON) |
 | `admin` | GET | Admin | Dashboard d'administration |
 | `admin_users` | GET | Admin | Page gestion utilisateurs |
 | `admin_lists` | GET | Admin | Page gestion listes |

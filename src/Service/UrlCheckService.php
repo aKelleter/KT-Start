@@ -27,6 +27,42 @@ final class UrlCheckService
     }
 
     /**
+     * Suit les redirections et retourne l'URL finale.
+     * Retourne null si l'URL ne redirige pas ou en cas d'erreur.
+     */
+    public static function getFinalUrl(string $url): ?string
+    {
+        $ch   = curl_init($url);
+        $opts = [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_NOBODY         => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 10,
+            CURLOPT_TIMEOUT        => self::TIMEOUT,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; KT-Start/1.0)',
+            CURLOPT_SSL_VERIFYPEER => false,
+        ];
+
+        $proxy = self::proxy();
+        if ($proxy !== '') {
+            $opts[CURLOPT_PROXY] = $proxy;
+        }
+
+        curl_setopt_array($ch, $opts);
+        curl_exec($ch);
+        $finalUrl = (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $error    = curl_errno($ch);
+        curl_close($ch);
+
+        if ($error !== 0 || $finalUrl === '' || $finalUrl === $url) {
+            return null;
+        }
+
+        return $finalUrl;
+    }
+
+    /**
      * @return array{status: 'ok'|'redirect'|'error'|'timeout', http_code: int}
      */
     public static function check(string $url): array

@@ -122,6 +122,10 @@ $total         = count($bookmarks);
                             <input type="checkbox" class="form-check-input ks-check-section"
                                    data-section="<?= $statusKey ?>">
                         </th>
+                        <?php elseif ($statusKey === 'redirect'): ?>
+                        <th style="width:36px">
+                            <input type="checkbox" class="form-check-input ks-check-redirect-section">
+                        </th>
                         <?php else: ?>
                         <th style="width:36px"></th>
                         <?php endif; ?>
@@ -137,6 +141,9 @@ $total         = count($bookmarks);
                             <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
                             <input type="checkbox" class="form-check-input ks-dead-check"
                                    name="ids[]" value="<?= $bm['id'] ?>">
+                            <?php elseif ($statusKey === 'redirect'): ?>
+                            <input type="checkbox" class="form-check-input ks-redirect-check"
+                                   value="<?= $bm['id'] ?>">
                             <?php endif; ?>
                         </td>
                         <td>
@@ -166,7 +173,8 @@ $total         = count($bookmarks);
     <?php endforeach; ?>
 
     <!-- Bouton suppression en lot -->
-    <div id="deadActionsBar" class="d-none mt-3 p-3 bg-danger bg-opacity-10 border border-danger rounded d-flex align-items-center gap-3">
+    <div id="deadActionsBar" class="d-none mt-3 p-3 bg-danger bg-opacity-10 border border-danger rounded d-flex align-items-center gap-3"
+         style="position:sticky;bottom:1rem;z-index:100;box-shadow:0 4px 16px rgba(220,53,69,.18)">
         <span class="text-danger fw-semibold">
             <i class="bi bi-trash me-1"></i>
             <span id="selectedCount">0</span> favori(s) sélectionné(s)
@@ -180,6 +188,21 @@ $total         = count($bookmarks);
         </button>
     </div>
 </form>
+
+<!-- Barre mise à jour redirects -->
+<div id="redirectActionsBar" class="d-none mt-3 p-3 bg-warning bg-opacity-10 border border-warning rounded d-flex align-items-center gap-3"
+     style="position:sticky;bottom:1rem;z-index:100;box-shadow:0 4px 16px rgba(255,193,7,.18)">
+    <span class="text-warning-emphasis fw-semibold">
+        <i class="bi bi-arrow-right-circle me-1"></i>
+        <span id="redirectSelectedCount">0</span> lien(s) redirigé(s) sélectionné(s)
+    </span>
+    <button type="button" id="btnUpdateRedirects" class="btn btn-warning btn-sm">
+        Mettre à jour les URLs
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDeselectRedirects">
+        Tout désélectionner
+    </button>
+</div>
 
 <script>
 (function () {
@@ -284,6 +307,70 @@ $total         = count($bookmarks);
     document.getElementById('btnDeselectAll')?.addEventListener('click', () => {
         document.querySelectorAll('.ks-dead-check, .ks-check-section').forEach(c => c.checked = false);
         updateActionBar();
+    });
+
+    // ── Sélection redirects ──────────────────────────────────────────────────
+    function updateRedirectBar() {
+        const n   = document.querySelectorAll('.ks-redirect-check:checked').length;
+        const bar = document.getElementById('redirectActionsBar');
+        bar.classList.toggle('d-none', n === 0);
+        document.getElementById('redirectSelectedCount').textContent = n;
+    }
+
+    document.querySelectorAll('.ks-redirect-check').forEach(cb => {
+        cb.addEventListener('change', updateRedirectBar);
+    });
+
+    document.querySelector('.ks-check-redirect-section')?.addEventListener('change', function () {
+        document.querySelectorAll('.ks-redirect-check').forEach(c => c.checked = this.checked);
+        updateRedirectBar();
+    });
+
+    document.getElementById('btnDeselectRedirects')?.addEventListener('click', () => {
+        document.querySelectorAll('.ks-redirect-check, .ks-check-redirect-section').forEach(c => c.checked = false);
+        updateRedirectBar();
+    });
+
+    // ── Mise à jour des URLs redirigées ──────────────────────────────────────
+    document.getElementById('btnUpdateRedirects')?.addEventListener('click', async function () {
+        const btn = this;
+        const ids = Array.from(document.querySelectorAll('.ks-redirect-check:checked')).map(c => c.value);
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mise à jour…';
+
+        let updated = 0, failed = 0;
+
+        for (const id of ids) {
+            const fd = new FormData();
+            fd.append('_csrf', csrf);
+            fd.append('id', id);
+
+            try {
+                const r    = await fetch('?action=bookmark_follow_redirect', { method: 'POST', body: fd });
+                const data = await r.json();
+
+                if (data.ok) {
+                    updated++;
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        const link   = row.querySelector('a');
+                        const urlDiv = row.querySelector('.text-muted.small.text-truncate');
+                        if (link)   { link.href = data.new_url; link.textContent = link.textContent; }
+                        if (urlDiv) { urlDiv.textContent = data.new_url; }
+                    }
+                } else {
+                    failed++;
+                }
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-right-circle me-1"></i>Mettre à jour les URLs';
+
+        setTimeout(() => location.reload(), 800);
     });
 })();
 </script>

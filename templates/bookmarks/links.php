@@ -173,8 +173,8 @@ $total         = count($bookmarks);
     <?php endforeach; ?>
 
     <!-- Bouton suppression en lot -->
-    <div id="deadActionsBar" class="d-none mt-3 p-3 bg-danger bg-opacity-10 border border-danger rounded d-flex align-items-center gap-3"
-         style="position:sticky;bottom:1rem;z-index:100;box-shadow:0 4px 16px rgba(220,53,69,.18)">
+    <div id="deadActionsBar" class="d-none p-3 border border-danger rounded d-flex align-items-center gap-3"
+         style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025;background:#fff5f5;box-shadow:0 4px 16px rgba(220,53,69,.25)">
         <span class="text-danger fw-semibold">
             <i class="bi bi-trash me-1"></i>
             <span id="selectedCount">0</span> favori(s) sélectionné(s)
@@ -190,8 +190,8 @@ $total         = count($bookmarks);
 </form>
 
 <!-- Barre mise à jour redirects -->
-<div id="redirectActionsBar" class="d-none mt-3 p-3 bg-warning bg-opacity-10 border border-warning rounded d-flex align-items-center gap-3"
-     style="position:sticky;bottom:1rem;z-index:100;box-shadow:0 4px 16px rgba(255,193,7,.18)">
+<div id="redirectActionsBar" class="d-none p-3 border border-warning rounded d-flex align-items-center gap-3"
+     style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025;background:#fffdf0;box-shadow:0 4px 16px rgba(255,193,7,.25)">
     <span class="text-warning-emphasis fw-semibold">
         <i class="bi bi-arrow-right-circle me-1"></i>
         <span id="redirectSelectedCount">0</span> lien(s) redirigé(s) sélectionné(s)

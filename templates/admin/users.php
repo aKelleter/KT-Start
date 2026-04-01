@@ -110,6 +110,13 @@ use App\Core\View;
                                placeholder="8 caractères minimum" autocomplete="new-password">
                     </div>
 
+                    <div class="mb-3" id="passwordConfirmGroup">
+                        <label class="form-label">Confirmer le mot de passe</label>
+                        <input type="password" class="form-control" id="userPasswordConfirm"
+                               placeholder="Répéter le mot de passe" autocomplete="new-password">
+                        <div class="invalid-feedback">Les mots de passe ne correspondent pas.</div>
+                    </div>
+
                     <div class="mb-1">
                         <label class="form-label">Rôle</label>
                         <select class="form-select" name="role" id="userRole">
@@ -156,6 +163,10 @@ use App\Core\View;
         document.getElementById('btnUserDelete').classList.toggle('d-none', !isEdit);
         document.getElementById('passwordHint').textContent = isEdit ? '(laisser vide pour ne pas changer)' : '';
 
+        const pwdConfirm = document.getElementById('userPasswordConfirm');
+        pwdConfirm.value = '';
+        pwdConfirm.classList.remove('is-invalid');
+
         if (isEdit) {
             document.getElementById('userId').value    = btn.dataset.id;
             document.getElementById('userEmail').value = btn.dataset.email;
@@ -164,6 +175,23 @@ use App\Core\View;
         } else {
             document.getElementById('userForm').reset();
             document.getElementById('userId').value = '';
+        }
+    });
+
+    document.getElementById('userPassword').addEventListener('input', function () {
+        const confirm = document.getElementById('userPasswordConfirm');
+        if (confirm.classList.contains('is-invalid')) {
+            confirm.classList.remove('is-invalid');
+        }
+    });
+
+    document.getElementById('userForm').addEventListener('submit', function (e) {
+        const pwd     = document.getElementById('userPassword').value;
+        const confirm = document.getElementById('userPasswordConfirm');
+        if (pwd && pwd !== confirm.value) {
+            e.preventDefault();
+            confirm.classList.add('is-invalid');
+            confirm.focus();
         }
     });
 

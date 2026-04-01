@@ -43,6 +43,9 @@ $appUpdate  = Config::get('APP_UPDATE', '');
                     <span class="small app-user-email d-none d-md-inline">
                         <?= View::e(Auth::user()['email'] ?? '') ?>
                     </span>
+                    <a href="?action=bookmarks" class="btn btn-outline-blue btn-sm" title="Mes favoris">
+                        <i class="bi bi-house"></i>
+                    </a>
                     <?php if (Auth::isAdmin()): ?>
                     <a href="?action=admin" class="btn btn-outline-blue btn-sm">
                         <i class="bi bi-gear me-1"></i>Admin

@@ -766,6 +766,8 @@ body.app-body {
     border-color: var(--app-border);
 }
 
+.ks-proxy-input::placeholder { color: #bbb; }
+
 .ks-migration-log {
     background: #f8f8fa;
     border: 1px solid var(--app-border);

@@ -141,11 +141,11 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - Pas de VirtualHost dédié
 
 ## Templates
-- `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, lien Admin (admin only, visible sur mobile)
+- `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, icône maison → `?action=bookmarks` (tous users connectés), lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
 - `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
 - `templates/admin/index.php` — dashboard 7 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
-- `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete)
+- `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete + confirmation mot de passe)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page)
 - `templates/admin/backup.php` — export v1/v2 + import + restauration complète
@@ -165,6 +165,7 @@ Fichier : `public/assets/css/app.css`
 - Admin : `.ks-admin-card`, `.ks-admin-icon`, `.ks-migration-log`
 - Pagination : `.ks-pagination`
 - Recherche : `.ks-search-input`
+- Indicateur statut lien : `.ks-link-dot` — position de base sans `position` ni coordonnées ; `.ks-badge-thumb .ks-link-dot` → `position:absolute; bottom:6px; right:6px; z-index:3` (règle plus spécifique que `.ks-badge-thumb span { position:relative }`) ; vues tableau/liste → `position:static` via `.ks-compact-item .ks-link-dot, td .ks-link-dot`
 - Même structure visuelle que KT-Drop (dominante bleue au lieu d'orange)
 
 ## Points techniques importants
@@ -190,7 +191,7 @@ Fichier : `public/assets/css/app.css`
 - **Détection de doublons URL** : `bookmark_check_duplicate` → GET JSON `{found, bookmark}`, `findByUrl()` avec `exclude_id` pour le mode édition — alerte inline sous le champ URL en mode add/edit
 - **Persistance liste sélectionnée** : `$_SESSION['ktstart_list']` mémorisé à chaque sélection explicite de liste, restauré si retour sur `?action=bookmarks` sans paramètre `list`
 - **Tags cleanup** : `deleteTagsUsedOnce()` dans `BookmarkRepository` — supprime d'un coup tous les tags apparaissant dans un seul favori ; bouton "Nettoyer (N unique(s))" sur la page `admin_tags`
-- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action sticky distinctes (rouge morts, jaune redirigés)
+- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues (point bas-droite dans le badge coloré) ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action `position:fixed` au-dessus du footer (`z-index:1025`, `bottom:calc(var(--app-footer-height)+.5rem)`), fond opaque : `#fff5f5` (rouge) / `#fffdf0` (jaune)
 - **Mise à jour URL redirigées** : `UrlCheckService::getFinalUrl()` suit les redirections (`CURLOPT_FOLLOWLOCATION`, `CURLINFO_EFFECTIVE_URL`) ; `BookmarkRepository::updateUrl()` met à jour url + host et remet last_check_status à NULL ; endpoint `bookmark_follow_redirect` traite un favori à la fois via JS fetch
 - **Dashboard admin — liens morts** : `BookmarkRepository::countDeadLinksAll()` compte les favoris en statut `error` ou `timeout` tous utilisateurs confondus ; `$deadLinkCount` passé au template ; badge rouge affiché sur la carte "Vérification des liens" si > 0
 - **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage

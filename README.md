@@ -59,7 +59,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 ### Administration
 L'interface d'administration est organisée en 7 sous-pages indépendantes accessibles depuis un dashboard central.
 
-- **Utilisateurs** : création, édition, suppression — protection contre l'auto-suppression et la suppression du dernier admin
+- **Utilisateurs** : création, édition, suppression — confirmation du mot de passe dans la modale, protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
 - **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
@@ -87,11 +87,11 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 
 - Vérifie chaque URL une par une via cURL (HEAD, fallback GET si 405)
 - Statuts : **OK** (2xx), **Redirigé** (301), **Inaccessible** (4xx/5xx), **Timeout** (erreur réseau)
-- Indicateurs visuels colorés sur les 3 vues (badges, tableau, liste)
+- Indicateurs visuels colorés sur les 3 vues (badges, tableau, liste) — point en bas à droite du badge coloré
 - Page rapport groupée par statut avec barre de progression en temps réel
 - **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
 - Suppression en lot des liens morts (inaccessibles et timeouts)
-- Barres d'action sticky pour la sélection en lot (rouge pour les morts, jaune pour les redirigés)
+- Barres d'action fixes (rouge pour les morts, jaune pour les redirigés) — flottent au-dessus du footer avec fond opaque
 - Réinitialisation des statuts en un clic
 - Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
 

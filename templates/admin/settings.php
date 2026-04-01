@@ -67,7 +67,7 @@ use App\Core\View;
                         </span>
                     <?php endif; ?>
                 </label>
-                <input type="text" class="form-control" name="check_proxy"
+                <input type="text" class="form-control ks-proxy-input" name="check_proxy"
                        placeholder="http://proxy.example.com:3128"
                        value="<?= View::e($settings['check_proxy'] ?? '') ?>">
                 <div class="form-text">Laisser vide pour désactiver le proxy.</div>

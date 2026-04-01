@@ -49,7 +49,14 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 ### Badges (style visuel)
 - 12 styles de couleur : `deepBlue`, `deepPurple`, `lightViolet`, `lightBlue`, `turquoise`, `lightGreen`, `lightOrange`, `deepOrange`, `red`, `pink`, `brown`, `grey`
 - Dégradé de couleur et **effet Liquid Glass** : reflet spéculaire, overlay directionnel, inset shadow
+- **Ombre colorée au survol** — la diffusion s'adapte automatiquement à la couleur de chaque badge via `color-mix()`
 - Texte de badge personnalisable (affiché sur la carte)
+
+### Mode sombre
+- Bouton 🌙 / ☀️ dans la navbar pour basculer entre mode clair et mode sombre
+- Préférence persistée dans `localStorage` — appliquée avant le rendu pour éviter tout flash
+- Palette bleu-grisée soignée, fond non-uniforme supprimé en sombre (évite les artefacts au scroll)
+- Compatible Bootstrap dark mode (`data-bs-theme`)
 
 ### Visibilité
 - Chaque favori peut être `public` ou `private`

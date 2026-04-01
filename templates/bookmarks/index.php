@@ -272,7 +272,7 @@ $badgeStyles = BadgeStyles::all();
 <?php elseif ($view === 'table'): ?>
 
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
+    <table class="table table-hover table-sm align-middle ks-table">
         <thead class="table-light">
             <tr>
                 <th style="width:36px"></th>

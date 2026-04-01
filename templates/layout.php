@@ -9,7 +9,7 @@ $appVersion = Config::get('APP_VERSION', '1.0.0');
 $appUpdate  = Config::get('APP_UPDATE', '');
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" id="html-root">
 <head>
     <meta charset="UTF-8">
     <title><?= View::e((string) $appName) ?></title>
@@ -25,6 +25,13 @@ $appUpdate  = Config::get('APP_UPDATE', '');
     >
     <link rel="icon" href="<?= View::asset('img/favicon.svg') ?>" type="image/svg+xml">
     <link rel="stylesheet" href="<?= View::asset('css/app.css') ?>">
+    <script>
+        (function() {
+            var t = localStorage.getItem('ks-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+            document.documentElement.setAttribute('data-bs-theme', t);
+        })();
+    </script>
 </head>
 <body class="app-body">
 
@@ -38,8 +45,8 @@ $appUpdate  = Config::get('APP_UPDATE', '');
                 <span><?= View::e((string) $appName) ?></span>
             </a>
 
-            <?php if (Auth::check()): ?>
-                <div class="d-flex align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2 gap-md-3">
+                <?php if (Auth::check()): ?>
                     <span class="small app-user-email d-none d-md-inline">
                         <?= View::e(Auth::user()['email'] ?? '') ?>
                     </span>
@@ -54,12 +61,15 @@ $appUpdate  = Config::get('APP_UPDATE', '');
                     <a href="?action=logout" class="btn btn-outline-blue btn-sm">
                         <i class="bi bi-box-arrow-right me-1"></i>Déconnexion
                     </a>
-                </div>
-            <?php else: ?>
-                <a href="?action=login" class="btn btn-outline-blue btn-sm">
-                    <i class="bi bi-person me-1"></i>Connexion
-                </a>
-            <?php endif; ?>
+                <?php else: ?>
+                    <a href="?action=login" class="btn btn-outline-blue btn-sm">
+                        <i class="bi bi-person me-1"></i>Connexion
+                    </a>
+                <?php endif; ?>
+                <button id="ks-theme-toggle" class="ks-theme-toggle" title="Basculer le mode sombre" aria-label="Mode sombre">
+                    <i class="bi bi-moon-fill" id="ks-theme-icon"></i>
+                </button>
+            </div>
         </div>
     </nav>
 

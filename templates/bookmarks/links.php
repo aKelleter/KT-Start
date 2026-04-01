@@ -114,7 +114,7 @@ $total         = count($bookmarks);
             <i class="bi <?= $sec['icon'] ?> me-1"></i><?= $sec['label'] ?> (<?= count($rows) ?>)
         </h6>
         <div class="table-responsive mb-3">
-            <table class="table table-sm align-middle">
+            <table class="table table-sm align-middle ks-table">
                 <thead class="table-light">
                     <tr>
                         <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>

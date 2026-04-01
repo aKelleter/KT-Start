@@ -17,4 +17,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 4000);
     });
 
+    // ── Dark mode toggle ──────────────────────────────────────────────────
+    const themeToggle = document.getElementById('ks-theme-toggle');
+    const themeIcon   = document.getElementById('ks-theme-icon');
+    const html        = document.getElementById('html-root');
+
+    function applyTheme(theme) {
+        html.setAttribute('data-theme', theme);
+        html.setAttribute('data-bs-theme', theme);
+        if (themeIcon) {
+            themeIcon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+        }
+        if (themeToggle) {
+            themeToggle.title = theme === 'dark' ? 'Passer en mode clair' : 'Passer en mode sombre';
+        }
+    }
+
+    if (themeToggle) {
+        // Sync icon with current theme (already applied by inline script)
+        applyTheme(html.getAttribute('data-theme') || 'light');
+
+        themeToggle.addEventListener('click', () => {
+            const current = html.getAttribute('data-theme') || 'light';
+            const next    = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('ks-theme', next);
+            applyTheme(next);
+        });
+    }
+
 });

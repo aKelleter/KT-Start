@@ -161,6 +161,7 @@ Fichier : `public/assets/css/app.css`
 - Boutons : `--bs-btn-border-radius: 10px` global, overrides Bootstrap variables sur `.btn-primary`
 - Classes badge : `.ks-badge`, `.ks-badge-thumb` (3 couches Liquid Glass : `::before` reflet, `::after` overlay, `inset box-shadow`), `.ks-badge-footer`
 - Taille badge : propriété CSS custom `--ks-badge-width` sur `.ks-badges-grid`, 6 paliers XS (80px) → XXL (240px), défaut L (160px), persisté en `localStorage`
+- Hover badge : `--ks-badge-color` injecté inline sur `.ks-badge` (couleur `bg` du style) ; `box-shadow` et `border-color` au survol utilisent `color-mix(in srgb, var(--ks-badge-color) …)` — ombre colorée propre à chaque badge
 - Classes liste compacte : `.ks-compact-item`
 - Dropdown liste : `.ks-list-dropdown-items` (max-height + scroll) — remplace les anciens pills `.ks-list-tab`
 - Modaux unifiés : `.ks-modal` (style Apple/Tesla, fond flouté, coins arrondis, séparateurs subtils)
@@ -168,7 +169,10 @@ Fichier : `public/assets/css/app.css`
 - Admin : `.ks-admin-card`, `.ks-admin-icon`, `.ks-migration-log`
 - Pagination : `.ks-pagination`
 - Recherche : `.ks-search-input`
+- Vue tableau et vérification des liens : classe `ks-table` sur `<table>` → `thead th` reçoit `background:#f8f9fa` (clair) / `#333740` (sombre), cohérent avec les tables admin
+- Barre d'outils (Tri, Liste, Tags, vérification liens, sélecteur de vue) : bordures unifiées sur `--app-border` dans tous les états (neutre/hover/actif) — seule la couleur de l'icône change en bleu au survol/sélection
 - Indicateur statut lien : `.ks-link-dot` — position de base sans `position` ni coordonnées ; `.ks-badge-thumb .ks-link-dot` → `position:absolute; bottom:6px; right:6px; z-index:3` (règle plus spécifique que `.ks-badge-thumb span { position:relative }`) ; vues tableau/liste → `position:static` via `.ks-compact-item .ks-link-dot, td .ks-link-dot`
+- **Mode sombre** : `[data-theme="dark"]` sur `<html>` + `data-bs-theme="dark"` pour Bootstrap ; script inline `<head>` applique le thème avant le rendu (évite le flash) ; toggle `🌙/☀️` dans la navbar ; persisté dans `localStorage` sous `ks-theme` ; fond sombre uni (`#22242a`, pas de gradient — évite les bandes au scroll) ; palette bleu-grisée ~`#22242a`→`#3a3e4a`
 - Même structure visuelle que KT-Drop (dominante bleue au lieu d'orange)
 
 ## Points techniques importants
@@ -200,6 +204,7 @@ Fichier : `public/assets/css/app.css`
 - **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage
 - **Robustesse migration** : `countDeadLinksAll()`, `StatsRepository::overview()` et `perLinkStatus()` protégés par `try/catch` — retournent 0 si `last_check_status` absent (migration non encore lancée), évite le fatal error sur `?action=admin`
 - **StatsRepository** : utilise `Database::connection()` (pas `getInstance()` qui n'existe pas) ; tous les chiffres calculés côté SQL sauf `topTags()` qui agrège les chaînes virgule-séparées en PHP
+- **Mode sombre — fond** : `background-attachment: fixed` conservé en mode clair seulement ; en mode sombre, fond couleur unie sans gradient (les `radial-gradient` fixes créent des bandes répétées visibles au scroll sur fond sombre)
 
 ## Ce qui reste à faire (non implémenté)
 - Partage public par lien direct avec token (comme KT-Drop)

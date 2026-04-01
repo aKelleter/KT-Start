@@ -57,12 +57,13 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Vue filtrée complète accessible après connexion
 
 ### Administration
-L'interface d'administration est organisée en 7 sous-pages indépendantes accessibles depuis un dashboard central.
+L'interface d'administration est organisée en 8 sous-pages indépendantes accessibles depuis un dashboard central.
 
 - **Utilisateurs** : création, édition, suppression — confirmation du mot de passe dans la modale, protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
 - **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
+- **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
 - **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
 - **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
@@ -244,6 +245,7 @@ KT-Start/
 │   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, getAllTags
 │   │   ├── ListRepository.php          # CRUD + findDefault, setDefault, clearDefault
 │   │   ├── SettingsRepository.php      # get, set, all — table settings clé/valeur
+│   │   ├── StatsRepository.php         # overview, perUser, perList, perLinkStatus, topTags, perMonth, perBadgeStyle
 │   │   └── UserRepository.php          # CRUD utilisateurs
 │   └── Service/
 │       ├── ImportExportService.php     # Export v1/v2, import avec détection auto, restauration complète
@@ -253,11 +255,12 @@ KT-Start/
 ├── templates/
 │   ├── layout.php
 │   ├── admin/
-│   │   ├── index.php                   # Dashboard 6 cartes de navigation
+│   │   ├── index.php                   # Dashboard 8 cartes de navigation
 │   │   ├── users.php                   # Gestion utilisateurs
 │   │   ├── lists.php                   # Gestion listes
 │   │   ├── settings.php                # Paramètres applicatifs
 │   │   ├── tags.php                    # Gestion tags (tous utilisateurs)
+│   │   ├── stats.php                   # Statistiques globales
 │   │   ├── backup.php                  # Sauvegarde export/import
 │   │   └── maintenance.php             # Migration + journal
 │   ├── auth/login.php
@@ -308,6 +311,7 @@ KT-Start/
 | `admin_backup` | GET | Admin | Page sauvegarde |
 | `admin_maintenance` | GET | Admin | Page maintenance |
 | `admin_tags` | GET | Admin | Page gestion tags |
+| `admin_stats` | GET | Admin | Page statistiques globales |
 | `admin_user_store` | POST | Admin | Créer un utilisateur |
 | `admin_user_update` | POST | Admin | Modifier un utilisateur |
 | `admin_user_delete` | POST | Admin | Supprimer un utilisateur |
@@ -329,6 +333,5 @@ KT-Start/
 ## Pistes d'évolution
 
 - Partage public par lien direct avec token
-- Page de statistiques (répartition par liste, tag, visibilité)
 - Notifications de favoris expirés ou inaccessibles
 - Rôle `editor` (multi-utilisateurs sans accès admin)

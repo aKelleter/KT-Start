@@ -94,6 +94,7 @@ $router->get('admin_settings',    [AdminController::class, 'settingsPage']);
 $router->get('admin_backup',      [AdminController::class, 'backupPage']);
 $router->get('admin_maintenance', [AdminController::class, 'maintenancePage']);
 $router->get('admin_tags',        [AdminController::class, 'tagsPage']);
+$router->get('admin_stats',       [AdminController::class, 'statsPage']);
 $router->post('admin_tag_rename',        [AdminController::class, 'tagRename']);
 $router->post('admin_tag_delete',        [AdminController::class, 'tagDelete']);
 $router->post('admin_tag_delete_unique', [AdminController::class, 'tagDeleteUnique']);

@@ -84,6 +84,15 @@ use App\Core\View;
         </a>
     </div>
     <div class="col-sm-6 col-lg-4">
+        <a href="?action=admin_stats" class="ks-admin-nav-card">
+            <div class="ks-admin-icon mb-3" style="background:rgba(99,102,241,.10);color:#6366f1">
+                <i class="bi bi-bar-chart-fill"></i>
+            </div>
+            <p class="fw-semibold mb-1">Statistiques</p>
+            <p class="text-muted small mb-0">Vue d'ensemble des favoris par liste, tag, statut et activité mensuelle.</p>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
         <a href="?action=bookmark_links_report" class="ks-admin-nav-card">
             <div class="ks-admin-icon mb-3" style="background:rgba(234,88,12,.10);color:#ea580c">
                 <i class="bi bi-link-45deg"></i>

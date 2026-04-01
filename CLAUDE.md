@@ -19,7 +19,7 @@ src/
 │   ├── BadgeStyles.php     # 12 styles de badge avec gradient() — deepBlue, turquoise, etc.
 │   └── Config.php          # Accès à $_ENV
 ├── Controller/
-│   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
+│   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
 │   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect()
 ├── Core/
@@ -34,6 +34,7 @@ src/
 │   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
+│   ├── StatsRepository.php     # overview(), perUser(), perList(), perLinkStatus(), topTags(), perMonth(), perBadgeStyle()
 │   └── UserRepository.php      # CRUD complet, emailExists()
 └── Service/
     ├── ImportExportService.php # export() v1 favoris, exportFull() v2 backup, import() détection auto v1/v2
@@ -99,13 +100,14 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_reset_status` (POST, auth) → remet last_check_status/at à NULL pour tous les favoris du user
 - `bookmark_delete_dead` (POST, auth) → supprime une liste d'ids (favoris morts sélectionnés)
 - `bookmark_follow_redirect` (POST JSON, auth) → suit le 301 d'un favori, met à jour url/host en DB, remet last_check_status à NULL
-- `admin` (GET, admin) → dashboard avec 7 cartes de navigation
+- `admin` (GET, admin) → dashboard avec 8 cartes de navigation
 - `admin_users` (GET, admin) → gestion utilisateurs
 - `admin_lists` (GET, admin) → gestion listes
 - `admin_settings` (GET, admin) → paramètres applicatifs
 - `admin_backup` (GET, admin) → sauvegarde (export/import)
 - `admin_maintenance` (GET, admin) → maintenance (migration + log)
 - `admin_tags` (GET, admin) → gestion des tags (renommer/supprimer, tous utilisateurs)
+- `admin_stats` (GET, admin) → statistiques globales
 - `admin_user_store` / `admin_user_update` / `admin_user_delete` (POST, admin)
 - `admin_list_store` / `admin_list_rename` / `admin_list_delete` (POST, admin)
 - `admin_list_set_default` (POST, admin) → toggle liste par défaut
@@ -144,13 +146,14 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, icône maison → `?action=bookmarks` (tous users connectés), lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
 - `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
-- `templates/admin/index.php` — dashboard 7 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
+- `templates/admin/index.php` — dashboard 8 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
 - `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete + confirmation mot de passe)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page)
 - `templates/admin/backup.php` — export v1/v2 + import + restauration complète
 - `templates/admin/maintenance.php` — migration runner + journal
 - `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
+- `templates/admin/stats.php` — 6 cartes résumé, graphique barres mensuel (12 mois, CSS pur), répartitions par liste / statut liens / top tags / utilisateur / style de badge
 
 ## Conventions CSS
 Fichier : `public/assets/css/app.css`
@@ -195,9 +198,11 @@ Fichier : `public/assets/css/app.css`
 - **Mise à jour URL redirigées** : `UrlCheckService::getFinalUrl()` suit les redirections (`CURLOPT_FOLLOWLOCATION`, `CURLINFO_EFFECTIVE_URL`) ; `BookmarkRepository::updateUrl()` met à jour url + host et remet last_check_status à NULL ; endpoint `bookmark_follow_redirect` traite un favori à la fois via JS fetch
 - **Dashboard admin — liens morts** : `BookmarkRepository::countDeadLinksAll()` compte les favoris en statut `error` ou `timeout` tous utilisateurs confondus ; `$deadLinkCount` passé au template ; badge rouge affiché sur la carte "Vérification des liens" si > 0
 - **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage
+- **Robustesse migration** : `countDeadLinksAll()`, `StatsRepository::overview()` et `perLinkStatus()` protégés par `try/catch` — retournent 0 si `last_check_status` absent (migration non encore lancée), évite le fatal error sur `?action=admin`
+- **StatsRepository** : utilise `Database::connection()` (pas `getInstance()` qui n'existe pas) ; tous les chiffres calculés côté SQL sauf `topTags()` qui agrège les chaînes virgule-séparées en PHP
 
 ## Ce qui reste à faire (non implémenté)
 - Partage public par lien direct avec token (comme KT-Drop)
-- Page de statistiques (répartition par liste, tag, visibilité)
+- ~~Page de statistiques (répartition par liste, tag, visibilité)~~ ✓ implémenté
 - ~~Vérification automatique des favoris inaccessibles (lien mort)~~ ✓ implémenté
 - Rôle `editor` (multi-utilisateurs sans accès admin)

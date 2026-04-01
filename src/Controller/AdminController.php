@@ -11,6 +11,7 @@ use App\Core\View;
 use App\Repository\BookmarkRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
+use App\Repository\StatsRepository;
 use App\Repository\UserRepository;
 use App\Service\ImportExportService;
 use App\Service\MigrationService;
@@ -149,6 +150,24 @@ final class AdminController
             'tags'  => (new BookmarkRepository())->getAllTagsAdmin(),
             'csrf'  => Csrf::token(),
             'flash' => Flash::get(),
+        ]);
+    }
+
+    // ── Statistiques ─────────────────────────────────────────────────────────
+
+    public function statsPage(): void
+    {
+        $this->requireAdmin();
+        $stats = new StatsRepository();
+        View::render('admin/stats', [
+            'overview'    => $stats->overview(),
+            'perUser'     => $stats->perUser(),
+            'perList'     => $stats->perList(),
+            'perStatus'   => $stats->perLinkStatus(),
+            'topTags'     => $stats->topTags(15),
+            'perMonth'    => $stats->perMonth(),
+            'perBadge'    => $stats->perBadgeStyle(),
+            'userCount'   => count((new UserRepository())->findAll()),
         ]);
     }
 

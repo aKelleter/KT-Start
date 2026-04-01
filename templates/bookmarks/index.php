@@ -230,8 +230,8 @@ $badgeStyles = BadgeStyles::all();
         <p class="text-muted">Aucun favori.</p>
     <?php endif; ?>
     <?php foreach ($bookmarks as $bm): ?>
-        <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
-        <div class="ks-badge" data-id="<?= $bm['id'] ?>">
+        <?php $bg = BadgeStyles::gradient($bm['badge_style']); $bgColor = BadgeStyles::bg($bm['badge_style']); ?>
+        <div class="ks-badge" data-id="<?= $bm['id'] ?>" style="--ks-badge-color:<?= $bgColor ?>">
             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
                 <div class="ks-badge-thumb" style="background:<?= $bg ?>">
                     <span><?= View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>

@@ -290,8 +290,8 @@ body.app-body {
 
 .ks-badge:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 22px rgba(2, 136, 209, 0.18);
-    border-color: rgba(2, 136, 209, 0.35);
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--ks-badge-color, #0288D1) 30%, transparent);
+    border-color: color-mix(in srgb, var(--ks-badge-color, #0288D1) 45%, transparent);
 }
 
 .ks-badge-link { display: block; text-decoration: none; }

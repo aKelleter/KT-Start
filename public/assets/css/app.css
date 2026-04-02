@@ -791,7 +791,7 @@ body.app-body {
     border-color: var(--app-border);
 }
 
-.ks-proxy-input::placeholder { color: #bbb; }
+:not([data-theme="dark"]) .ks-proxy-input::placeholder { color: #bbb; }
 
 .ks-migration-log {
     background: #f8f8fa;
@@ -1005,6 +1005,7 @@ td .ks-link-dot {
 }
 
 [data-theme="dark"] .ks-modal .form-control::placeholder { color: #6a707c; }
+[data-theme="dark"] .ks-proxy-input::placeholder { color: #4a5060; }
 
 [data-theme="dark"] .ks-modal .input-group .btn-outline-secondary {
     background: #444a56;

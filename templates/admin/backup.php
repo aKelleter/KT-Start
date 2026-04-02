@@ -82,7 +82,8 @@ use App\Core\View;
                     <input type="file" class="form-control form-control-sm" name="import_file"
                            accept=".json,application/json" required style="max-width:280px">
                     <button type="submit" class="btn btn-sm btn-primary" id="btnImport">
-                        <i class="bi bi-upload me-1"></i>Importer
+                        <span id="btnImportSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
+                        <i class="bi bi-upload me-1" id="btnImportIcon"></i><span id="btnImportLabel">Importer</span>
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-danger" id="btnFullRestore">
                         <i class="bi bi-arrow-counterclockwise me-1"></i>Restauration complète
@@ -155,13 +156,15 @@ use App\Core\View;
     const btnFullRestore     = document.getElementById('btnFullRestore');
     const fullRestoreInput   = document.getElementById('fullRestoreInput');
     const fullRestoreWarning = document.getElementById('fullRestoreWarning');
+    const importForm         = document.getElementById('importForm');
 
     if (btnFullRestore) {
         btnFullRestore.addEventListener('click', function () {
             if (fullRestoreInput.value === '1') {
                 // Déjà en mode restauration → soumettre avec confirmation
                 if (confirm('Confirmer la restauration complète ?\n\nToutes les données actuelles seront effacées et remplacées par le contenu du fichier. Cette action est irréversible.')) {
-                    document.getElementById('importForm').submit();
+                    showImportSpinner(true);
+                    importForm.submit();
                 }
             } else {
                 // Passer en mode restauration complète
@@ -171,6 +174,26 @@ use App\Core\View;
                 btnFullRestore.classList.replace('btn-outline-danger', 'btn-danger');
                 document.getElementById('btnImport').classList.add('d-none');
             }
+        });
+    }
+
+    // ── Spinner import ───────────────────────────────────────────────────
+    function showImportSpinner(forRestore) {
+        const spinner = document.getElementById('btnImportSpinner');
+        const icon    = document.getElementById('btnImportIcon');
+        const label   = document.getElementById('btnImportLabel');
+        const btn     = document.getElementById('btnImport');
+        spinner.classList.remove('d-none');
+        icon.classList.add('d-none');
+        label.textContent = forRestore ? 'Restauration…' : 'Import en cours…';
+        btn.disabled = true;
+        btnFullRestore.disabled = true;
+    }
+
+    if (importForm) {
+        importForm.addEventListener('submit', function () {
+            const isRestore = fullRestoreInput.value === '1';
+            showImportSpinner(isRestore);
         });
     }
 

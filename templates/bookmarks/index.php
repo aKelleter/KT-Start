@@ -107,7 +107,7 @@ $badgeStyles = BadgeStyles::all();
             <i class="bi bi-collection me-1"></i><?= $listLabel ?>
         </button>
         <div class="dropdown-menu p-2" style="min-width:200px">
-            <input type="search" class="form-control form-control-sm mb-1 ks-list-search"
+            <input type="search" id="ks-list-search" name="ks-list-search" class="form-control form-control-sm mb-1 ks-list-search"
                    placeholder="Rechercher…" autocomplete="off">
             <div class="ks-list-dropdown-items">
                 <a class="dropdown-item<?= $listId === null ? ' active' : '' ?>"
@@ -606,22 +606,6 @@ $badgeStyles = BadgeStyles::all();
     </div>
 </div>
 
-<!-- ── JS recherche liste ─────────────────────────────────────────────────── -->
-<script>
-(function () {
-    const input = document.querySelector('.ks-list-search');
-    if (!input) return;
-    input.addEventListener('input', function () {
-        const q = this.value.toLowerCase().trim();
-        document.querySelectorAll('.ks-list-dropdown-items a[data-list-name]').forEach(a => {
-            a.style.display = a.dataset.listName.includes(q) ? '' : 'none';
-        });
-    });
-    // Garder le focus dans l'input sans fermer le dropdown
-    input.addEventListener('click', e => e.stopPropagation());
-})();
-</script>
-
 <!-- ── JS modal ───────────────────────────────────────────────────────────── -->
 <script>
 (function () {
@@ -804,6 +788,22 @@ $badgeStyles = BadgeStyles::all();
 <?php endif; ?>
 
 <?php endif; ?>
+
+<!-- ── JS recherche liste ─────────────────────────────────────────────────── -->
+<script>
+(function () {
+    const input = document.querySelector('.ks-list-search');
+    if (!input) return;
+    input.addEventListener('input', function () {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.ks-list-dropdown-items a[data-list-name]').forEach(a => {
+            a.style.display = a.dataset.listName.includes(q) ? '' : 'none';
+        });
+    });
+    // Garder le focus dans l'input sans fermer le dropdown
+    input.addEventListener('click', e => e.stopPropagation());
+})();
+</script>
 
 <?php if ($view === 'badges'): ?>
 <script>

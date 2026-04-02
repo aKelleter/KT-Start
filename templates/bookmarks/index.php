@@ -459,6 +459,9 @@ $badgeStyles = BadgeStyles::all();
                 <input type="hidden" name="id" id="bmId">
                 <input type="hidden" name="_list_id" value="<?= $listId ?? '' ?>">
                 <input type="hidden" name="_view" value="<?= View::e($view) ?>">
+                <input type="hidden" name="_tag" value="<?= View::e($tag) ?>">
+                <input type="hidden" name="_sort" value="<?= View::e($sort) ?>">
+                <input type="hidden" name="_search" value="<?= View::e($search) ?>">
 
                 <div class="modal-body">
 
@@ -600,6 +603,9 @@ $badgeStyles = BadgeStyles::all();
                 <input type="hidden" name="id" id="deleteId">
                 <input type="hidden" name="_list_id" value="<?= $listId ?? '' ?>">
                 <input type="hidden" name="_view" value="<?= View::e($view) ?>">
+                <input type="hidden" name="_tag" value="<?= View::e($tag) ?>">
+                <input type="hidden" name="_sort" value="<?= View::e($sort) ?>">
+                <input type="hidden" name="_search" value="<?= View::e($search) ?>">
             </form>
 
         </div>

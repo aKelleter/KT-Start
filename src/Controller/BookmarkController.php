@@ -448,6 +448,15 @@ final class BookmarkController
         if (!empty($_POST['_view'])) {
             $params['view'] = $_POST['_view'];
         }
+        if (!empty($_POST['_tag'])) {
+            $params['tag'] = $_POST['_tag'];
+        }
+        if (!empty($_POST['_sort']) && $_POST['_sort'] !== 'position') {
+            $params['sort'] = $_POST['_sort'];
+        }
+        if (!empty($_POST['_search'])) {
+            $params['q'] = $_POST['_search'];
+        }
 
         return '?' . http_build_query($params);
     }

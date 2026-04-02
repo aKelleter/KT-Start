@@ -207,7 +207,6 @@ Fichier : `public/assets/css/app.css`
 - **Mode sombre — fond** : `background-attachment: fixed` conservé en mode clair seulement ; en mode sombre, fond couleur unie sans gradient (les `radial-gradient` fixes créent des bandes répétées visibles au scroll sur fond sombre)
 
 ## Ce qui reste à faire (non implémenté)
-- Partage public par lien direct avec token (comme KT-Drop)
 - ~~Page de statistiques (répartition par liste, tag, visibilité)~~ ✓ implémenté
 - ~~Vérification automatique des favoris inaccessibles (lien mort)~~ ✓ implémenté
 - Rôle `editor` (multi-utilisateurs sans accès admin)

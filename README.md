@@ -339,6 +339,5 @@ KT-Start/
 
 ## Pistes d'évolution
 
-- Partage public par lien direct avec token
 - Notifications de favoris expirés ou inaccessibles
 - Rôle `editor` (multi-utilisateurs sans accès admin)

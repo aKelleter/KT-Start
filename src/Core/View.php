@@ -13,6 +13,12 @@ final class View
         require BASE_PATH . '/templates/layout.php';
     }
 
+    public static function renderRaw(string $template, array $data = []): void
+    {
+        extract($data, EXTR_SKIP);
+        require BASE_PATH . '/templates/' . $template . '.php';
+    }
+
     public static function e(?string $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

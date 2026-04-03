@@ -262,6 +262,11 @@ $badgeStyles = BadgeStyles::all();
                         data-list-id="<?= (int) $bm['list_id'] ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
+                <button class="ks-quick-delete btn btn-link p-0"
+                        data-delete-id="<?= $bm['id'] ?>"
+                        title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                </button>
                 <?php endif; ?>
             </div>
         </div>
@@ -280,7 +285,7 @@ $badgeStyles = BadgeStyles::all();
                 <th>Liste</th>
                 <th>Tags</th>
                 <th>Visibilité</th>
-                <th style="width:60px"></th>
+                <th style="width:88px"></th>
             </tr>
         </thead>
         <tbody>
@@ -328,26 +333,33 @@ $badgeStyles = BadgeStyles::all();
                     <?php if ($bm['visibility'] === 'public'): ?>
                         <span class="badge text-bg-success">Public</span>
                     <?php else: ?>
-                        <span class="badge text-bg-light text-muted border">Privé</span>
+                        <span class="badge ks-badge-private">Privé</span>
                     <?php endif; ?>
                 </td>
                 <?php if (!$readOnly): ?>
                 <td>
-                    <button class="btn btn-sm btn-outline-secondary"
-                            data-bs-toggle="modal" data-bs-target="#bookmarkModal"
-                            data-mode="edit"
-                            data-id="<?= $bm['id'] ?>"
-                            data-url="<?= View::e($bm['url']) ?>"
-                            data-host="<?= View::e($bm['host']) ?>"
-                            data-title="<?= View::e($bm['title']) ?>"
-                            data-description="<?= View::e($bm['description']) ?>"
-                            data-badge-style="<?= View::e($bm['badge_style']) ?>"
-                            data-badge-text="<?= View::e($bm['badge_text']) ?>"
-                            data-tags="<?= View::e($bm['tags']) ?>"
-                            data-visibility="<?= View::e($bm['visibility']) ?>"
-                            data-list-id="<?= (int) $bm['list_id'] ?>">
-                        <i class="bi bi-pencil"></i>
-                    </button>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-outline-secondary"
+                                data-bs-toggle="modal" data-bs-target="#bookmarkModal"
+                                data-mode="edit"
+                                data-id="<?= $bm['id'] ?>"
+                                data-url="<?= View::e($bm['url']) ?>"
+                                data-host="<?= View::e($bm['host']) ?>"
+                                data-title="<?= View::e($bm['title']) ?>"
+                                data-description="<?= View::e($bm['description']) ?>"
+                                data-badge-style="<?= View::e($bm['badge_style']) ?>"
+                                data-badge-text="<?= View::e($bm['badge_text']) ?>"
+                                data-tags="<?= View::e($bm['tags']) ?>"
+                                data-visibility="<?= View::e($bm['visibility']) ?>"
+                                data-list-id="<?= (int) $bm['list_id'] ?>">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
+                                data-delete-id="<?= $bm['id'] ?>"
+                                title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
                 </td>
                 <?php endif; ?>
             </tr>
@@ -402,6 +414,11 @@ $badgeStyles = BadgeStyles::all();
                     data-visibility="<?= View::e($bm['visibility']) ?>"
                     data-list-id="<?= (int) $bm['list_id'] ?>">
                 <i class="bi bi-pencil text-secondary"></i>
+            </button>
+            <button class="ks-quick-delete btn btn-link p-0"
+                    data-delete-id="<?= $bm['id'] ?>"
+                    title="Supprimer">
+                <i class="bi bi-trash"></i>
             </button>
             <?php endif; ?>
         </div>
@@ -612,6 +629,29 @@ $badgeStyles = BadgeStyles::all();
     </div>
 </div>
 
+<!-- ── Modal confirmation suppression ────────────────────────────────────── -->
+<div class="modal fade ks-modal" id="deleteConfirmModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-1">
+                <h6 class="modal-title fw-semibold">
+                    <i class="bi bi-trash text-danger me-2"></i>Supprimer le favori ?
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <p class="text-muted small mb-0" id="deleteConfirmTitle"></p>
+            </div>
+            <div class="modal-footer border-0 pt-1 gap-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger btn-sm" id="deleteConfirmBtn">
+                    <i class="bi bi-trash me-1"></i>Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── JS modal ───────────────────────────────────────────────────────────── -->
 <script>
 (function () {
@@ -632,6 +672,8 @@ $badgeStyles = BadgeStyles::all();
         form.action = mode === 'edit' ? '?action=bookmark_update' : '?action=bookmark_store';
 
         document.getElementById('btnDelete').classList.toggle('d-none', mode !== 'edit');
+
+        document.getElementById('bmDuplicateAlert').classList.add('d-none');
 
         if (mode === 'edit') {
             document.getElementById('bmId').value          = btn.dataset.id;
@@ -654,11 +696,39 @@ $badgeStyles = BadgeStyles::all();
         }
     });
 
-    // Delete button
-    document.getElementById('btnDelete').addEventListener('click', function () {
-        if (confirm('Supprimer ce favori ?')) {
-            deleteForm.submit();
+    // Confirmation suppression
+    let deleteFromEditModal = false;
+
+    function openDeleteConfirm(id, title, fromEdit) {
+        document.getElementById('deleteId').value = id;
+        document.getElementById('deleteConfirmTitle').textContent = title || '';
+        deleteFromEditModal = !!fromEdit;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteConfirmModal')).show();
+    }
+
+    document.getElementById('deleteConfirmBtn').addEventListener('click', function () {
+        bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'))?.hide();
+        if (deleteFromEditModal) {
+            bootstrap.Modal.getInstance(document.getElementById('bookmarkModal'))?.hide();
         }
+        deleteForm.submit();
+    });
+
+    // Delete button (depuis le modal d'édition)
+    document.getElementById('btnDelete').addEventListener('click', function () {
+        const title = document.getElementById('bmTitle').value
+                   || document.getElementById('bmUrl').value;
+        openDeleteConfirm(document.getElementById('deleteId').value, title, true);
+    });
+
+    // Quick delete buttons (inline dans les vues)
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.ks-quick-delete');
+        if (!btn) return;
+        const row = btn.closest('[data-id]');
+        const title = row?.querySelector('a[href]')?.textContent.trim()
+                   || btn.dataset.deleteId;
+        openDeleteConfirm(btn.dataset.deleteId, title, false);
     });
 
     // Fetch meta

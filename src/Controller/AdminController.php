@@ -69,6 +69,7 @@ final class AdminController
             'settings'    => $settingsRepo->all(),
             'envPerPage'  => $_ENV['BOOKMARKS_PER_PAGE'] ?? null,
             'envProxy'    => $_ENV['CHECK_PROXY'] ?? null,
+            'appUrl'      => rtrim((string) ($_ENV['APP_URL'] ?? ''), '/'),
             'csrf'        => Csrf::token(),
             'flash'       => Flash::get(),
         ]);

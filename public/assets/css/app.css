@@ -413,6 +413,8 @@ body.app-body {
 
 .ks-badge-edit { color: var(--app-muted) !important; line-height: 1; font-size: .82rem; }
 .ks-badge-edit:hover { color: var(--app-blue) !important; }
+.ks-badge-footer .ks-quick-delete { color: var(--app-muted) !important; line-height: 1; font-size: .82rem; }
+.ks-badge-footer .ks-quick-delete:hover { color: #e53935 !important; }
 
 /* ── Vue Tableau ─────────────────────────────────────────────────────────── */
 .ks-table thead th {
@@ -422,6 +424,11 @@ body.app-body {
     font-weight: 600;
     color: var(--app-muted);
     padding: .6rem 1rem;
+}
+.ks-badge-private {
+    background-color: #f1f3f5;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
 }
 
 .ks-table-thumb {
@@ -492,6 +499,8 @@ body.app-body {
 .ks-compact-tags  { display: flex; flex-wrap: wrap; gap: .2rem; flex: 1; }
 .ks-compact-edit  { flex-shrink: 0; opacity: .35; transition: opacity .15s; }
 .ks-compact-edit:hover { opacity: 1; }
+.ks-compact-item .ks-quick-delete { flex-shrink: 0; opacity: .3; transition: opacity .15s; }
+.ks-compact-item .ks-quick-delete:hover { opacity: 1; }
 
 /* ── Badge style picker ──────────────────────────────────────────────────── */
 .ks-color-swatch { cursor: pointer; }
@@ -1022,6 +1031,11 @@ td .ks-link-dot {
     background: #333740;
     color: var(--app-muted);
     border-bottom-color: var(--app-border);
+}
+[data-theme="dark"] .ks-badge-private {
+    background-color: #2e3139;
+    color: #868e96;
+    border-color: #3a3e4a;
 }
 
 [data-theme="dark"] .ks-migration-log {

@@ -20,8 +20,10 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Gestion des favoris
 - Ajout d'un favori avec récupération automatique du titre, de l'hôte et de la description (via `UrlMetaService`)
+- **Bookmarklet** — bouton à glisser dans la barre du navigateur pour ajouter la page courante en un clic, sans quitter l'onglet (popup autonome 480×580)
 - **Détection de doublons d'URL** en temps réel lors de l'ajout ou de la modification
 - Modification et suppression, toutes les actions protégées par CSRF
+- **Suppression rapide** directement sur chaque favori (icône poubelle sur les 3 vues) avec confirmation en modal Bootstrap
 - Trois vues disponibles : **Badges**, **Tableau**, **Liste compacte**
 - Contrôle de la taille d'affichage des badges : 6 paliers XS → XXL, mémorisés dans `localStorage`
 - **Tri par glisser-déposer** (SortableJS) en mode vue Badges, tri par position
@@ -68,7 +70,7 @@ L'interface d'administration est organisée en 8 sous-pages indépendantes acces
 
 - **Utilisateurs** : création, édition, suppression — confirmation du mot de passe dans la modale, protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
-- **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide)
+- **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide) + **code bookmarklet** généré avec l'URL de l'instance (à glisser dans la barre du navigateur)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
 - **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
 - **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
@@ -239,7 +241,7 @@ KT-Start/
 │   ├── Controller/
 │   │   ├── AdminController.php         # Utilisateurs, listes, paramètres, maintenance
 │   │   ├── AuthController.php          # Connexion / déconnexion
-│   │   └── BookmarkController.php      # home, index, store, update, delete, reorder, fetchMeta
+│   │   └── BookmarkController.php      # home, index, store, update, delete, reorder, fetchMeta, bookmarklet, bookmarkletStore
 │   ├── Core/
 │   │   ├── Auth.php                    # Session ktstart_session, rôles
 │   │   ├── Csrf.php
@@ -247,7 +249,7 @@ KT-Start/
 │   │   ├── Flash.php
 │   │   ├── Response.php
 │   │   ├── Router.php                  # Routes par ?action=xxx
-│   │   └── View.php                    # render(), e(), asset()
+│   │   └── View.php                    # render(), renderRaw(), e(), asset()
 │   ├── Repository/
 │   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, getAllTags
 │   │   ├── ListRepository.php          # CRUD + findDefault, setDefault, clearDefault
@@ -271,7 +273,9 @@ KT-Start/
 │   │   ├── backup.php                  # Sauvegarde export/import
 │   │   └── maintenance.php             # Migration + journal
 │   ├── auth/login.php
-│   └── bookmarks/index.php             # 3 vues, drag & drop, pagination, nuage de tags, tout afficher
+│   └── bookmarks/
+│       ├── index.php                   # 3 vues, drag & drop, pagination, nuage de tags, tout afficher
+│       └── bookmarklet.php             # Popup autonome d'ajout rapide (sans layout)
 ├── .env
 ├── .env.local
 ├── .env.local.example
@@ -311,6 +315,8 @@ KT-Start/
 | `bookmark_reset_status` | POST | Auth | Réinitialiser tous les statuts |
 | `bookmark_delete_dead` | POST | Auth | Supprimer les favoris morts sélectionnés |
 | `bookmark_follow_redirect` | POST | Auth | Mettre à jour l'URL finale d'un favori redirigé (JSON) |
+| `bookmarklet` | GET | Public | Popup d'ajout rapide (URL + titre pré-remplis depuis le navigateur) |
+| `bookmarklet_store` | POST | Public | Enregistrer le favori depuis la popup bookmarklet |
 | `admin` | GET | Admin | Dashboard d'administration |
 | `admin_users` | GET | Admin | Page gestion utilisateurs |
 | `admin_lists` | GET | Admin | Page gestion listes |
@@ -341,3 +347,4 @@ KT-Start/
 
 - Notifications de favoris expirés ou inaccessibles
 - Rôle `editor` (multi-utilisateurs sans accès admin)
+- Import de favoris au format HTML (Netscape bookmarks)

@@ -81,3 +81,54 @@ use App\Core\View;
 
     </form>
 </div>
+
+<!-- ── Bookmarklet ────────────────────────────────────────────────────────── -->
+<?php
+$bookmarkletJs = "javascript:(function(){var u=encodeURIComponent(location.href);var t=encodeURIComponent(document.title);window.open('" . $appUrl . "?action=bookmarklet&url='+u+'&title='+t,'kt-start','width=480,height=580,resizable=yes,scrollbars=yes');})();";
+?>
+<div class="ks-admin-card p-4 mt-4">
+    <h6 class="fw-bold mb-1">
+        <i class="bi bi-bookmark-plus me-2 text-primary"></i>Bookmarklet
+    </h6>
+    <p class="text-muted small mb-3">
+        Glissez ce bouton dans votre barre de favoris pour ajouter n'importe quelle page en un clic.
+    </p>
+
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <a href="<?= View::e($bookmarkletJs) ?>"
+           class="btn btn-primary btn-sm"
+           onclick="return false;"
+           title="Glissez ce bouton dans votre barre de favoris">
+            <i class="bi bi-bookmark-plus me-1"></i>+ KT-Start
+        </a>
+        <span class="text-muted small">← Glissez ce bouton dans votre barre de favoris</span>
+    </div>
+
+    <div class="mb-0">
+        <label class="form-label small fw-semibold">Code du bookmarklet</label>
+        <div class="input-group input-group-sm">
+            <input type="text" class="form-control form-control-sm font-monospace"
+                   id="bookmarkletCode"
+                   value="<?= View::e($bookmarkletJs) ?>"
+                   readonly
+                   style="font-size:.72rem">
+            <button class="btn btn-outline-secondary" type="button" id="btnCopyBookmarklet"
+                    title="Copier">
+                <i class="bi bi-clipboard"></i>
+            </button>
+        </div>
+        <div class="form-text">
+            Si le glisser-déposer ne fonctionne pas, copiez ce code et créez manuellement un favori avec cette URL.
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('btnCopyBookmarklet').addEventListener('click', function () {
+    navigator.clipboard.writeText(document.getElementById('bookmarkletCode').value).then(() => {
+        const icon = this.querySelector('i');
+        icon.className = 'bi bi-check-lg text-success';
+        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
+    });
+});
+</script>

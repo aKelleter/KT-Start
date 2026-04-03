@@ -21,7 +21,7 @@ src/
 ├── Controller/
 │   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
-│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect()
+│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect(), bookmarklet(), bookmarkletStore()
 ├── Core/
 │   ├── Auth.php            # Session : ktstart_session (≠ ktdrop_session), isAdmin()
 │   ├── Csrf.php
@@ -29,7 +29,7 @@ src/
 │   ├── Flash.php
 │   ├── Response.php
 │   ├── Router.php          # Routes par ?action=xxx, non-auth → ?action=home
-│   └── View.php            # render(), e(), asset() → 'public/assets/...'
+│   └── View.php            # render(), renderRaw() (sans layout — popup bookmarklet), e(), asset() → 'public/assets/...'
 ├── Repository/
 │   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
@@ -100,6 +100,8 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_reset_status` (POST, auth) → remet last_check_status/at à NULL pour tous les favoris du user
 - `bookmark_delete_dead` (POST, auth) → supprime une liste d'ids (favoris morts sélectionnés)
 - `bookmark_follow_redirect` (POST JSON, auth) → suit le 301 d'un favori, met à jour url/host en DB, remet last_check_status à NULL
+- `bookmarklet` (GET, public) → popup autonome d'ajout rapide, reçoit `url` et `title` en GET, auth gérée dans le controller (3 états : non connecté / formulaire / succès)
+- `bookmarklet_store` (POST, public) → enregistre le favori depuis la popup, affiche l'état succès avec bouton `window.close()`
 - `admin` (GET, admin) → dashboard avec 8 cartes de navigation
 - `admin_users` (GET, admin) → gestion utilisateurs
 - `admin_lists` (GET, admin) → gestion listes
@@ -145,11 +147,12 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 ## Templates
 - `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, icône maison → `?action=bookmarks` (tous users connectés), lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
-- `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
+- `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, bouton poubelle `.ks-quick-delete` inline sur chaque favori, modal de confirmation suppression `#deleteConfirmModal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
+- `templates/bookmarks/bookmarklet.php` — page popup autonome (sans layout), 3 états : `$notLogged` / formulaire / `$saved` ; champs URL+titre pré-remplis, liste, tags, couleur badge, visibilité
 - `templates/admin/index.php` — dashboard 8 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
 - `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete + confirmation mot de passe)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
-- `templates/admin/settings.php` — paramètres (bookmarks_per_page)
+- `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
 - `templates/admin/backup.php` — export v1/v2 + import + restauration complète
 - `templates/admin/maintenance.php` — migration runner + journal
 - `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
@@ -172,7 +175,12 @@ Fichier : `public/assets/css/app.css`
 - Vue tableau et vérification des liens : classe `ks-table` sur `<table>` → `thead th` reçoit `background:#f8f9fa` (clair) / `#333740` (sombre), cohérent avec les tables admin
 - Barre d'outils (Tri, Liste, Tags, vérification liens, sélecteur de vue) : bordures unifiées sur `--app-border` dans tous les états (neutre/hover/actif) — seule la couleur de l'icône change en bleu au survol/sélection
 - Indicateur statut lien : `.ks-link-dot` — position de base sans `position` ni coordonnées ; `.ks-badge-thumb .ks-link-dot` → `position:absolute; bottom:6px; right:6px; z-index:3` (règle plus spécifique que `.ks-badge-thumb span { position:relative }`) ; vues tableau/liste → `position:static` via `.ks-compact-item .ks-link-dot, td .ks-link-dot`
+- **Badge visibilité "Privé"** : classe `.ks-badge-private` (pas `text-bg-light`) — fond gris clair en mode clair, `#2e3139` en mode sombre via `[data-theme="dark"] .ks-badge-private`
+- **Bouton poubelle inline** : `.ks-quick-delete` sur les 3 vues — gris atténué par défaut (opacity .3), rouge au survol ; handler délégué sur `document` ; ouvre `#deleteConfirmModal` (jamais `confirm()` natif)
+- **Modal de confirmation suppression** : `#deleteConfirmModal` Bootstrap initialisé en lazy (`bootstrap.Modal.getOrCreateInstance()`) — JAMAIS en top-level IIFE car Bootstrap JS est chargé après le template dans le layout
 - **Mode sombre** : `[data-theme="dark"]` sur `<html>` + `data-bs-theme="dark"` pour Bootstrap ; script inline `<head>` applique le thème avant le rendu (évite le flash) ; toggle `🌙/☀️` dans la navbar ; persisté dans `localStorage` sous `ks-theme` ; fond sombre uni (`#22242a`, pas de gradient — évite les bandes au scroll) ; palette bleu-grisée ~`#22242a`→`#3a3e4a`
+- **Bootstrap JS chargé après le template** : `bootstrap.bundle.min.js` est en bas du layout (après `</main>`) — tout appel à `new bootstrap.Modal()` au top-level d'un script inclus dans le template lève `ReferenceError`. Utiliser `bootstrap.Modal.getOrCreateInstance()` ou `bootstrap.Modal.getInstance()` uniquement dans des handlers d'événements
+- **Bookmarklet** : `View::renderRaw()` pour les pages sans layout ; routes `bookmarklet`/`bookmarklet_store` publiques, auth gérée dans le controller ; code JS généré dans `admin/settings.php` depuis `APP_URL` (`$_ENV['APP_URL']`)
 - Même structure visuelle que KT-Drop (dominante bleue au lieu d'orange)
 
 ## Points techniques importants
@@ -209,4 +217,6 @@ Fichier : `public/assets/css/app.css`
 ## Ce qui reste à faire (non implémenté)
 - ~~Page de statistiques (répartition par liste, tag, visibilité)~~ ✓ implémenté
 - ~~Vérification automatique des favoris inaccessibles (lien mort)~~ ✓ implémenté
+- ~~Bookmarklet (ajout rapide depuis le navigateur)~~ ✓ implémenté
 - Rôle `editor` (multi-utilisateurs sans accès admin)
+- Import de favoris au format HTML (Netscape bookmarks)

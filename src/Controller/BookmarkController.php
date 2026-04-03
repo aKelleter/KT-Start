@@ -438,6 +438,86 @@ final class BookmarkController
         return implode(',', array_values($tags));
     }
 
+    public function bookmarklet(): void
+    {
+        if (!Auth::check()) {
+            View::renderRaw('bookmarks/bookmarklet', ['notLogged' => true, 'saved' => false]);
+            return;
+        }
+
+        $url   = trim($_GET['url'] ?? '');
+        $title = trim($_GET['title'] ?? '');
+        $host  = (string) parse_url($url, PHP_URL_HOST);
+
+        View::renderRaw('bookmarks/bookmarklet', [
+            'url'         => $url,
+            'title'       => $title,
+            'host'        => $host,
+            'lists'       => (new ListRepository())->findAll(),
+            'badgeStyles' => \App\Config\BadgeStyles::all(),
+            'csrf'        => Csrf::token(),
+            'notLogged'   => false,
+            'saved'       => false,
+            'error'       => null,
+        ]);
+    }
+
+    public function bookmarkletStore(): void
+    {
+        if (!Auth::check()) {
+            View::renderRaw('bookmarks/bookmarklet', ['notLogged' => true, 'saved' => false]);
+            return;
+        }
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            View::renderRaw('bookmarks/bookmarklet', [
+                'notLogged' => false, 'saved' => false, 'error' => 'Jeton CSRF invalide.',
+                'url' => '', 'title' => '', 'host' => '',
+                'lists' => (new ListRepository())->findAll(),
+                'badgeStyles' => \App\Config\BadgeStyles::all(),
+                'csrf' => Csrf::token(),
+            ]);
+            return;
+        }
+
+        $url = trim($_POST['url'] ?? '');
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            View::renderRaw('bookmarks/bookmarklet', [
+                'notLogged' => false, 'saved' => false, 'error' => 'URL invalide.',
+                'url'   => $url,
+                'title' => trim($_POST['title'] ?? ''),
+                'host'  => (string) parse_url($url, PHP_URL_HOST),
+                'lists' => (new ListRepository())->findAll(),
+                'badgeStyles' => \App\Config\BadgeStyles::all(),
+                'csrf'  => Csrf::token(),
+            ]);
+            return;
+        }
+
+        $listId = isset($_POST['list_id']) && $_POST['list_id'] !== '' ? (int) $_POST['list_id'] : null;
+
+        (new BookmarkRepository())->create([
+            'url'         => $url,
+            'host'        => trim($_POST['host'] ?? (string) parse_url($url, PHP_URL_HOST)),
+            'title'       => trim($_POST['title'] ?? ''),
+            'description' => trim($_POST['description'] ?? ''),
+            'badge_style' => $_POST['badge_style'] ?? 'deepBlue',
+            'badge_text'  => trim($_POST['badge_text'] ?? ''),
+            'tags'        => $this->normalizeTags($_POST['tags'] ?? ''),
+            'visibility'  => ($_POST['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
+            'list_id'     => $listId,
+            'user_id'     => (int) Auth::id(),
+            'position'    => 0,
+            'created_at'  => date('Y-m-d H:i:s'),
+        ]);
+
+        View::renderRaw('bookmarks/bookmarklet', [
+            'notLogged'  => false,
+            'saved'      => true,
+            'savedTitle' => trim($_POST['title'] ?? $url),
+        ]);
+    }
+
     private function buildRedirectUrl(): string
     {
         $params = ['action' => 'bookmarks'];

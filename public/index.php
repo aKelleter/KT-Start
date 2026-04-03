@@ -75,6 +75,8 @@ $router->post('login_submit',  [AuthController::class,   'loginSubmit'], true);
 $router->get('logout',         [AuthController::class,   'logout']);
 
 $router->get('bookmarks',          [BookmarkController::class, 'index']);
+$router->get('bookmarklet',        [BookmarkController::class, 'bookmarklet'],      true);
+$router->post('bookmarklet_store', [BookmarkController::class, 'bookmarkletStore'], true);
 $router->post('bookmark_store',    [BookmarkController::class, 'store']);
 $router->post('bookmark_update',   [BookmarkController::class, 'update']);
 $router->post('bookmark_delete',   [BookmarkController::class, 'delete']);

@@ -2,20 +2,47 @@
 use App\Core\View;
 ?>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>KT-Start — Ajouter un favori</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <script>
+        (function() {
+            var t = localStorage.getItem('ks-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+            document.documentElement.setAttribute('data-bs-theme', t);
+        })();
+    </script>
     <style>
         :root {
             --app-blue: #0288D1;
-            --app-radius: 12px;
+            --bml-bg:      #f5f7fa;
+            --bml-card:    #ffffff;
+            --bml-text:    #1a1a2e;
+            --bml-muted:   #6b7280;
+            --bml-label:   #374151;
+            --bml-border:  #d1d5db;
+            --bml-sep:     #e5e7eb;
+            --bml-input-bg:#ffffff;
+            --bml-dot-sel: #1a1a2e;
+        }
+        [data-theme="dark"] {
+            --bml-bg:      #111113;
+            --bml-card:    #1c1c1e;
+            --bml-text:    #f2f2f7;
+            --bml-muted:   #98989d;
+            --bml-label:   #c7c7cc;
+            --bml-border:  #3a3a3c;
+            --bml-sep:     #2c2c2e;
+            --bml-input-bg:#2c2c2e;
+            --bml-dot-sel: #f2f2f7;
         }
         body {
-            background: #f5f7fa;
+            background: var(--bml-bg);
+            color: var(--bml-text);
             font-family: system-ui, -apple-system, sans-serif;
             font-size: .9rem;
             padding: 1rem;
@@ -27,7 +54,7 @@ use App\Core\View;
             gap: .5rem;
             margin-bottom: 1rem;
             padding-bottom: .75rem;
-            border-bottom: 1px solid #e5e7eb;
+            border-bottom: 1px solid var(--bml-sep);
         }
         .bml-header-icon {
             width: 32px; height: 32px;
@@ -38,17 +65,21 @@ use App\Core\View;
             font-size: 1rem;
             flex-shrink: 0;
         }
-        .bml-title { font-weight: 700; font-size: .95rem; color: #1a1a2e; }
-        .bml-subtitle { font-size: .75rem; color: #6b7280; }
-        .form-label { font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: .25rem; }
+        .bml-title   { font-weight: 700; font-size: .95rem; color: var(--bml-text); }
+        .bml-subtitle { font-size: .75rem; color: var(--bml-muted); }
+        .form-label  { font-size: .8rem; font-weight: 600; color: var(--bml-label); margin-bottom: .25rem; }
         .form-control, .form-select {
             font-size: .85rem;
             border-radius: 8px;
-            border-color: #d1d5db;
+            border-color: var(--bml-border);
+            background-color: var(--bml-input-bg);
+            color: var(--bml-text);
         }
         .form-control:focus, .form-select:focus {
             border-color: var(--app-blue);
             box-shadow: 0 0 0 3px rgba(2,136,209,.15);
+            background-color: var(--bml-input-bg);
+            color: var(--bml-text);
         }
         .btn-primary {
             background: var(--app-blue);
@@ -69,7 +100,7 @@ use App\Core\View;
         }
         .ks-dot-mini:hover { transform: scale(1.15); }
         input[name="badge_style"]:checked + .ks-dot-mini {
-            border-color: #1a1a2e;
+            border-color: var(--bml-dot-sel);
             transform: scale(1.15);
         }
         /* État succès */
@@ -87,6 +118,10 @@ use App\Core\View;
             display: flex; align-items: center; justify-content: center;
             font-size: 1.6rem;
             color: #059669;
+        }
+        [data-theme="dark"] .bml-success-icon {
+            background: #052e16;
+            color: #34d399;
         }
         /* État non connecté */
         .bml-unauth {

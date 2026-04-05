@@ -70,9 +70,18 @@ use App\Core\View;
                 <input type="text" class="form-control ks-proxy-input" name="check_proxy"
                        placeholder="http://proxy.example.com:3128"
                        value="<?= View::e($settings['check_proxy'] ?? '') ?>">
-                <div class="form-text">Laisser vide pour désactiver le proxy.</div>
+                <div class="mt-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="check_proxy_enabled"
+                               id="checkProxyEnabled" value="1"
+                               <?= ($settings['check_proxy_enabled'] ?? '1') !== '0' ? 'checked' : '' ?>>
+                        <label class="form-check-label small" for="checkProxyEnabled">
+                            Activer le proxy
+                        </label>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-2 d-flex align-items-center">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-check-lg me-1"></i>Enregistrer
                 </button>

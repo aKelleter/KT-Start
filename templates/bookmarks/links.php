@@ -35,9 +35,30 @@ $total         = count($bookmarks);
         <div class="text-muted small"><?= $total ?> favori<?= $total > 1 ? 's' : '' ?></div>
     </div>
 
-    <div class="d-flex gap-2 ms-auto">
-        <button id="btnCheckAll" class="btn btn-primary" data-csrf="<?= View::e($csrf) ?>">
-            <i class="bi bi-arrow-repeat me-1"></i>Vérifier tous les liens
+    <div class="d-flex gap-2 ms-auto flex-wrap">
+        <!-- Bouton principal : "Vérifier" ou "Continuer (N)" selon l'état -->
+        <button id="btnCheckPending" class="btn btn-primary" data-csrf="<?= View::e($csrf) ?>">
+            <?php if ($neverChecked > 0 && $neverChecked < $total): ?>
+                <i class="bi bi-play-fill me-1"></i>Continuer (<?= $neverChecked ?> restant<?= $neverChecked > 1 ? 's' : '' ?>)
+            <?php else: ?>
+                <i class="bi bi-arrow-repeat me-1"></i>Vérifier tous les liens
+            <?php endif; ?>
+        </button>
+
+        <!-- Tout revérifier : visible uniquement quand une partie est déjà vérifiée -->
+        <?php if ($neverChecked > 0 && $neverChecked < $total): ?>
+        <button id="btnCheckAll" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-repeat me-1"></i>Tout revérifier
+        </button>
+        <?php else: ?>
+        <button id="btnCheckAll" class="btn btn-outline-secondary d-none">
+            <i class="bi bi-arrow-repeat me-1"></i>Tout revérifier
+        </button>
+        <?php endif; ?>
+
+        <!-- Bouton Stop (caché au départ) -->
+        <button id="btnStop" class="btn btn-danger d-none">
+            <i class="bi bi-stop-fill me-1"></i>Arrêter
         </button>
 
         <form method="post" action="?action=bookmark_reset_status" class="d-inline"
@@ -136,7 +157,7 @@ $total         = count($bookmarks);
                 </thead>
                 <tbody>
                 <?php foreach ($rows as $bm): ?>
-                    <tr class="<?= $sec['bg'] ?>" data-id="<?= $bm['id'] ?>">
+                    <tr class="<?= $sec['bg'] ?>" data-id="<?= $bm['id'] ?>" data-status="<?= View::e($bm['last_check_status'] ?? '') ?>">
                         <td>
                             <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
                             <input type="checkbox" class="form-check-input ks-dead-check"
@@ -206,24 +227,52 @@ $total         = count($bookmarks);
 
 <script>
 (function () {
-    const csrf = document.querySelector('#btnCheckAll').dataset.csrf;
-    // Liste des IDs dans l'ordre du DOM (toutes les lignes du tableau)
-    const allIds = Array.from(document.querySelectorAll('tr[data-id]'))
-                        .map(tr => tr.dataset.id);
-    const total  = allIds.length;
+    const csrf = document.getElementById('btnCheckPending').dataset.csrf;
 
-    const counts = { ok: 0, error: 0, timeout: 0, redirect: 0 };
+    const allRows    = Array.from(document.querySelectorAll('tr[data-id]'));
+    const allIds     = allRows.map(tr => tr.dataset.id);
+    const total      = allIds.length;
+
+    // IDs non encore vérifiés au chargement de la page
+    const getPendingIds = () =>
+        Array.from(document.querySelectorAll('tr[data-id][data-status=""]'))
+             .map(tr => tr.dataset.id);
+
+    const btnPending = document.getElementById('btnCheckPending');
+    const btnAll     = document.getElementById('btnCheckAll');
+    const btnStop    = document.getElementById('btnStop');
+
+    let stopRequested = false;
+    let isRunning     = false;
+
+    // ── Démarrage d'une vérification ─────────────────────────────────────────
+    function startCheck(ids) {
+        if (isRunning) return;
+        isRunning     = true;
+        stopRequested = false;
+
+        btnPending.classList.add('d-none');
+        btnAll.classList.add('d-none');
+        btnStop.classList.remove('d-none');
+        document.getElementById('checkProgress').classList.remove('d-none');
+
+        // Progression initiale : liens déjà vérifiés avant ce run
+        const alreadyDone = total - ids.length;
+        updateProgress(alreadyDone, alreadyDone);
+
+        checkNext(ids, alreadyDone);
+    }
 
     // ── Vérification URL par URL ─────────────────────────────────────────────
     async function checkNext(ids, done) {
-        if (ids.length === 0) {
-            onAllDone();
+        if (ids.length === 0 || stopRequested) {
+            onRunEnd(ids.length === 0);
             return;
         }
-        const id  = ids[0];
-        const rest = ids.slice(1);
 
-        const fd = new FormData();
+        const id   = ids[0];
+        const rest = ids.slice(1);
+        const fd   = new FormData();
         fd.append('_csrf', csrf);
         fd.append('id', id);
 
@@ -232,13 +281,16 @@ $total         = count($bookmarks);
             const data = await r.json();
 
             if (data.ok) {
-                counts[data.status] = (counts[data.status] || 0) + 1;
+                // Mettre à jour le statut dans le DOM pour le tracking "reprendre"
+                document.querySelectorAll(`tr[data-id="${id}"]`).forEach(tr => {
+                    tr.dataset.status = data.status;
+                });
 
-                // Mettre à jour le code HTTP
+                const cls = data.status === 'ok'
+                    ? 'text-bg-success'
+                    : (data.status === 'redirect' ? 'text-bg-warning' : 'text-bg-danger');
+
                 document.querySelectorAll(`.ks-http-code[data-id="${id}"]`).forEach(el => {
-                    const cls = data.status === 'ok'
-                        ? 'text-bg-success'
-                        : (data.status === 'redirect' ? 'text-bg-warning' : 'text-bg-danger');
                     el.innerHTML = `<span class="badge ${cls}">${data.http_code || '—'}</span>`;
                 });
                 document.querySelectorAll(`.ks-checked-at[data-id="${id}"]`).forEach(el => {
@@ -246,42 +298,61 @@ $total         = count($bookmarks);
                 });
             }
         } catch (e) {
-            // Erreur réseau : compter comme timeout
-            counts.timeout = (counts.timeout || 0) + 1;
+            document.querySelectorAll(`tr[data-id="${id}"]`).forEach(tr => {
+                tr.dataset.status = 'timeout';
+            });
         }
 
-        // Mise à jour barre de progression
-        const doneCount = done + 1;
-        const pct = Math.round(doneCount / total * 100);
-        document.getElementById('progressBar').style.width = pct + '%';
-        document.getElementById('progressLabel').textContent = `${doneCount} / ${total}`;
-
-        // Mise à jour compteurs en temps réel
-        document.getElementById('countOk').textContent       = counts.ok       || 0;
-        document.getElementById('countDead').textContent     = (counts.error   || 0) + (counts.timeout || 0);
-        document.getElementById('countRedirect').textContent = counts.redirect  || 0;
-        document.getElementById('countUnchecked').textContent = total - doneCount;
-
-        checkNext(rest, doneCount);
+        updateProgress(done + 1, done + 1);
+        checkNext(rest, done + 1);
     }
 
-    function onAllDone() {
-        const btn = document.getElementById('btnCheckAll');
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Revérifier';
-        // Recharger pour regrouper par statut
-        setTimeout(() => location.reload(), 1000);
+    function updateProgress(done) {
+        const pct     = Math.round(done / total * 100);
+        const pending = getPendingIds().length;
+        document.getElementById('progressBar').style.width  = pct + '%';
+        document.getElementById('progressLabel').textContent = `${done} / ${total}`;
+        document.getElementById('countUnchecked').textContent = pending;
+
+        // Compteurs ok/dead/redirect depuis le DOM
+        const rows = Array.from(document.querySelectorAll('tr[data-id]'));
+        const st   = { ok: 0, error: 0, timeout: 0, redirect: 0 };
+        rows.forEach(tr => { if (st[tr.dataset.status] !== undefined) st[tr.dataset.status]++; });
+        document.getElementById('countOk').textContent       = st.ok;
+        document.getElementById('countDead').textContent     = st.error + st.timeout;
+        document.getElementById('countRedirect').textContent = st.redirect;
     }
 
-    document.getElementById('btnCheckAll').addEventListener('click', function () {
-        this.disabled = true;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Vérification…';
-        document.getElementById('checkProgress').classList.remove('d-none');
-        document.getElementById('countUnchecked').textContent = total;
-        counts.ok = counts.error = counts.timeout = counts.redirect = 0;
+    function onRunEnd(completed) {
+        isRunning = false;
+        btnStop.classList.add('d-none');
 
-        checkNext(allIds, 0);
+        const remaining = getPendingIds().length;
+
+        if (completed) {
+            // Tout terminé : recharger pour regrouper
+            btnPending.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Revérifier';
+            btnPending.classList.remove('d-none');
+            setTimeout(() => location.reload(), 800);
+        } else {
+            // Arrêté en cours : restaurer les boutons avec le bon état
+            if (remaining > 0) {
+                btnPending.innerHTML = `<i class="bi bi-play-fill me-1"></i>Continuer (${remaining} restant${remaining > 1 ? 's' : ''})`;
+                btnAll.classList.remove('d-none');
+            } else {
+                btnPending.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>Tout revérifier';
+            }
+            btnPending.classList.remove('d-none');
+        }
+    }
+
+    btnPending.addEventListener('click', () => startCheck(getPendingIds()));
+    btnAll.addEventListener('click',     () => {
+        // Réinitialiser tous les data-status dans le DOM pour forcer la revérification
+        document.querySelectorAll('tr[data-id]').forEach(tr => tr.dataset.status = '');
+        startCheck(allIds);
     });
+    btnStop.addEventListener('click', () => { stopRequested = true; });
 
     // ── Sélection en lot ─────────────────────────────────────────────────────
     function updateActionBar() {

@@ -117,6 +117,7 @@ final class AdminController
         $repo = new SettingsRepository();
         $repo->set('bookmarks_per_page', (string) $perPage);
         $repo->set('check_proxy', trim($_POST['check_proxy'] ?? ''));
+        $repo->set('check_proxy_enabled', isset($_POST['check_proxy_enabled']) ? '1' : '0');
 
         Flash::set('success', 'Paramètres enregistrés.');
         Response::redirect('?action=admin_settings');

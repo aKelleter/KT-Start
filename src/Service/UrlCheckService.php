@@ -20,8 +20,15 @@ final class UrlCheckService
 
     private static function proxy(): string
     {
+        $settings = new SettingsRepository();
+
+        // Si la case "Utiliser le proxy" est décochée, on n'applique pas le proxy
+        if ($settings->get('check_proxy_enabled') === '0') {
+            return '';
+        }
+
         // Priorité : DB → .env → vide
-        $fromDb  = (new SettingsRepository())->get('check_proxy');
+        $fromDb  = $settings->get('check_proxy');
         $fromEnv = trim((string) ($_ENV['CHECK_PROXY'] ?? ''));
         return $fromDb !== '' ? $fromDb : $fromEnv;
     }

@@ -575,6 +575,127 @@ body.app-body {
 .ks-sortable-ghost   { opacity: .35; }
 .ks-sortable-chosen  { box-shadow: 0 6px 20px rgba(2, 136, 209, 0.22) !important; }
 
+/* ── Vue Explorateur ─────────────────────────────────────────────────────── */
+.ks-explorer-tree {
+    border: 1px solid var(--app-border);
+    border-radius: 14px;
+    background: var(--app-card);
+    padding: .65rem;
+}
+
+.ks-explorer-dropzone {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    padding-left: 1rem;
+    border-left: 1px dashed color-mix(in srgb, var(--app-border) 70%, transparent);
+    margin-left: .2rem;
+}
+
+.ks-explorer-tree > .ks-explorer-dropzone {
+    padding-left: .15rem;
+    margin-left: 0;
+    border-left: none;
+}
+
+.ks-explorer-node {
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--app-card) 90%, #fff);
+}
+
+.ks-explorer-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 38px;
+    padding: .3rem .55rem;
+}
+
+.ks-explorer-bookmark .ks-explorer-row:hover,
+.ks-explorer-folder > .ks-explorer-row:hover {
+    background: var(--app-hover-pale);
+}
+.ks-explorer-folder > .ks-explorer-row {
+    cursor: pointer;
+}
+
+.ks-folder-toggle {
+    color: var(--app-muted);
+    line-height: 1;
+}
+
+.ks-folder-toggle:hover {
+    color: var(--app-blue);
+}
+
+.ks-explorer-row .btn.btn-sm {
+    --bs-btn-padding-y: .15rem;
+    --bs-btn-padding-x: .42rem;
+    --bs-btn-font-size: .78rem;
+}
+
+[data-theme="dark"] .ks-explorer-node {
+    background: #333740;
+}
+
+/* ── Badge dossier (vue badges) ──────────────────────────────────────────── */
+.ks-folder-thumb {
+    background: linear-gradient(135deg, #0288D1 0%, #01579B 100%);
+    flex-direction: column;
+    gap: .18rem;
+    cursor: pointer;
+    user-select: none;
+}
+.ks-folder-thumb .ks-folder-icon {
+    font-size: clamp(1rem, calc(var(--ks-badge-width, 160px) * 0.15), 2.4rem);
+    color: #fff;
+    position: relative;
+    z-index: 2;
+}
+.ks-folder-thumb .ks-folder-chevron {
+    color: rgba(255,255,255,.75);
+    font-size: .72rem;
+    position: relative;
+    z-index: 2;
+    transition: transform .2s ease;
+}
+.ks-folder-thumb.collapsed .ks-folder-chevron {
+    transform: rotate(-90deg);
+}
+/* Nom du dossier dans le thumb : 1 ligne max (le footer affiche le nom complet) */
+.ks-folder-thumb span:not(.ks-folder-count) {
+    -webkit-line-clamp: 1 !important;
+}
+.ks-folder-count {
+    background: rgba(255,255,255,.22);
+    color: #fff !important;
+    border-radius: 20px;
+    padding: 0 .45em;
+    font-size: .68rem !important;
+    font-weight: 600 !important;
+    min-width: 1.4em;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    display: inline-block !important;
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+    line-height: 1.2 !important;
+    word-break: normal !important;
+}
+.ks-folder-thumb i {
+    position: relative;
+    z-index: 2;
+}
+/* Zone de drop minimaliste quand un dossier est temporairement ouvert pour le drag */
+.ks-badges-grid.ks-drop-target-empty {
+    min-height: 3rem;
+    border: 2px dashed var(--app-border);
+    border-radius: 10px;
+    padding: .5rem;
+}
+
 /* ── Modal formulaire (style Apple / Tesla) ──────────────────────────────── */
 .ks-modal .modal-content {
     border-radius: 22px;

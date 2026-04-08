@@ -346,6 +346,7 @@ final class ImportExportService
                 'tags'        => substr(trim((string) ($bm['tags'] ?? '')), 0, 500),
                 'visibility'  => $visibility,
                 'list_id'     => $listId,
+                'folder_id'   => null,
                 'user_id'     => $userId,
                 'position'    => (int) ($bm['position'] ?? 0),
                 'created_at'  => $createdAt,

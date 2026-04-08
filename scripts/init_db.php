@@ -21,6 +21,17 @@ $pdo->exec("
     CREATE TABLE IF NOT EXISTS lists (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         name       TEXT NOT NULL UNIQUE,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS folders (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT NOT NULL,
+        user_id    INTEGER NOT NULL REFERENCES users(id),
+        list_id    INTEGER NOT NULL REFERENCES lists(id),
+        parent_id  INTEGER REFERENCES folders(id),
+        position   INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL
     );
 
@@ -30,14 +41,17 @@ $pdo->exec("
         host        TEXT,
         title       TEXT,
         description TEXT,
-        badge_style TEXT NOT NULL DEFAULT 'primary',
+        badge_style TEXT NOT NULL DEFAULT 'deepBlue',
         badge_text  TEXT NOT NULL DEFAULT '',
         tags        TEXT,
         visibility  TEXT NOT NULL DEFAULT 'private',
         list_id     INTEGER REFERENCES lists(id),
+        folder_id   INTEGER REFERENCES folders(id),
         user_id     INTEGER NOT NULL REFERENCES users(id),
         position    INTEGER DEFAULT 0,
-        created_at  TEXT NOT NULL
+        created_at  TEXT NOT NULL,
+        last_check_status TEXT,
+        last_check_at TEXT
     );
 ");
 

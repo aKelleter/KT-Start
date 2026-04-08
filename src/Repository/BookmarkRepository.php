@@ -75,9 +75,10 @@ final class BookmarkRepository
 
         $limitSql = $limit > 0 ? "LIMIT $limit OFFSET $offset" : '';
         $sql = "
-            SELECT b.*, l.name AS list_name
+            SELECT b.*, l.name AS list_name, f.name AS folder_name
             FROM bookmarks b
             LEFT JOIN lists l ON l.id = b.list_id
+            LEFT JOIN folders f ON f.id = b.folder_id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY {$this->orderBy($sort)}
             $limitSql
@@ -99,6 +100,15 @@ final class BookmarkRepository
         return (int) $stmt->fetchColumn();
     }
 
+    public function findPublicByList(int $listId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT * FROM bookmarks WHERE visibility = \'public\' AND list_id = :list_id ORDER BY position ASC, created_at DESC'
+        );
+        $stmt->execute(['list_id' => $listId]);
+        return $stmt->fetchAll();
+    }
+
     // ── Lecture filtrée (connecté) ────────────────────────────────────────────
 
     public function findFiltered(
@@ -109,9 +119,10 @@ final class BookmarkRepository
 
         $limitSql = $limit > 0 ? "LIMIT $limit OFFSET $offset" : '';
         $sql = "
-            SELECT b.*, l.name AS list_name
+            SELECT b.*, l.name AS list_name, f.name AS folder_name
             FROM bookmarks b
             LEFT JOIN lists l ON l.id = b.list_id
+            LEFT JOIN folders f ON f.id = b.folder_id
             WHERE " . implode(' AND ', $where) . "
             ORDER BY {$this->orderBy($sort)}
             $limitSql
@@ -149,10 +160,10 @@ final class BookmarkRepository
         $stmt = Database::connection()->prepare("
             INSERT INTO bookmarks
                 (url, host, title, description, badge_style, badge_text, tags,
-                 visibility, list_id, user_id, position, created_at)
+                 visibility, list_id, folder_id, user_id, position, created_at)
             VALUES
                 (:url, :host, :title, :description, :badge_style, :badge_text, :tags,
-                 :visibility, :list_id, :user_id, :position, :created_at)
+                 :visibility, :list_id, :folder_id, :user_id, :position, :created_at)
         ");
         $stmt->execute($data);
         return (int) Database::connection()->lastInsertId();
@@ -331,6 +342,31 @@ final class BookmarkRepository
         );
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll();
+    }
+
+    public function findByUserAndListWithFolder(int $userId, int $listId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT * FROM bookmarks WHERE user_id = :user_id AND list_id = :list_id ORDER BY position ASC, created_at DESC'
+        );
+        $stmt->execute(['user_id' => $userId, 'list_id' => $listId]);
+        return $stmt->fetchAll();
+    }
+
+    public function setFolderAndPosition(int $id, int $userId, int $listId, ?int $folderId, int $position): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET folder_id = :folder_id, position = :position WHERE id = :id AND user_id = :user_id AND list_id = :list_id'
+        );
+        $stmt->execute([
+            'folder_id' => $folderId,
+            'position' => $position,
+            'id' => $id,
+            'user_id' => $userId,
+            'list_id' => $listId,
+        ]);
+
+        return $stmt->rowCount() > 0;
     }
 
     /** Met à jour le statut de vérification d'un favori. */

@@ -52,6 +52,26 @@ final class MigrationService
                 'created_at' => "ALTER TABLE lists ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
             ],
         ],
+        'folders' => [
+            'create' => "
+                CREATE TABLE IF NOT EXISTS folders (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name       TEXT NOT NULL,
+                    user_id    INTEGER NOT NULL REFERENCES users(id),
+                    list_id    INTEGER NOT NULL REFERENCES lists(id),
+                    parent_id  INTEGER REFERENCES folders(id),
+                    position   INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+            ",
+            'columns' => [
+                'user_id'    => 'ALTER TABLE folders ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0',
+                'list_id'    => 'ALTER TABLE folders ADD COLUMN list_id INTEGER NOT NULL DEFAULT 0',
+                'parent_id'  => 'ALTER TABLE folders ADD COLUMN parent_id INTEGER REFERENCES folders(id)',
+                'position'   => 'ALTER TABLE folders ADD COLUMN position INTEGER NOT NULL DEFAULT 0',
+                'created_at' => "ALTER TABLE folders ADD COLUMN created_at TEXT NOT NULL DEFAULT ''",
+            ],
+        ],
         'bookmarks' => [
             'create' => "
                 CREATE TABLE IF NOT EXISTS bookmarks (
@@ -65,9 +85,12 @@ final class MigrationService
                     tags        TEXT,
                     visibility  TEXT NOT NULL DEFAULT 'private',
                     list_id     INTEGER REFERENCES lists(id),
+                    folder_id   INTEGER REFERENCES folders(id),
                     user_id     INTEGER NOT NULL REFERENCES users(id),
                     position    INTEGER DEFAULT 0,
-                    created_at  TEXT NOT NULL
+                    created_at  TEXT NOT NULL,
+                    last_check_status TEXT,
+                    last_check_at TEXT
                 )
             ",
             'columns' => [
@@ -79,6 +102,7 @@ final class MigrationService
                 'tags'        => 'ALTER TABLE bookmarks ADD COLUMN tags TEXT',
                 'visibility'  => "ALTER TABLE bookmarks ADD COLUMN visibility TEXT NOT NULL DEFAULT 'private'",
                 'list_id'     => 'ALTER TABLE bookmarks ADD COLUMN list_id INTEGER REFERENCES lists(id)',
+                'folder_id'         => 'ALTER TABLE bookmarks ADD COLUMN folder_id INTEGER REFERENCES folders(id)',
                 'position'          => 'ALTER TABLE bookmarks ADD COLUMN position INTEGER DEFAULT 0',
                 'last_check_status' => 'ALTER TABLE bookmarks ADD COLUMN last_check_status TEXT',
                 'last_check_at'     => 'ALTER TABLE bookmarks ADD COLUMN last_check_at TEXT',

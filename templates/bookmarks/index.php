@@ -61,6 +61,11 @@ $badgeStyles = BadgeStyles::all();
         <a href="<?= $q(['view' => 'list', 'page' => null]) ?>"
            class="btn btn-outline-secondary<?= $view === 'list' ? ' active' : '' ?>"
            title="Vue Liste"><i class="bi bi-list-ul"></i></a>
+          <?php if (!$readOnly): ?>
+          <a href="<?= $q(['view' => 'explorer', 'page' => null]) ?>"
+              class="btn btn-outline-secondary<?= $view === 'explorer' ? ' active' : '' ?>"
+              title="Vue Explorateur"><i class="bi bi-folder2-open"></i></a>
+          <?php endif; ?>
     </div>
 
     <!-- Tri -->
@@ -190,6 +195,11 @@ $badgeStyles = BadgeStyles::all();
             data-mode="add">
         <i class="bi bi-plus-lg me-1"></i>Ajouter
     </button>
+    <?php if ($listId !== null): ?>
+    <button class="btn btn-sm btn-outline-secondary" id="btnFolderCreateRoot" title="Nouveau dossier">
+        <i class="bi bi-folder-plus me-1"></i>Dossier
+    </button>
+    <?php endif; ?>
     <?php endif; ?>
 </div>
 
@@ -222,59 +232,276 @@ $badgeStyles = BadgeStyles::all();
 </div>
 <?php endif; ?>
 
+<?php
+// ── Regroupement par dossier (vues badges / tableau / liste) ─────────────────
+$bmByFolder = [];
+if (!empty($folders) && $listId !== null) {
+    foreach ($bookmarks as $bm) {
+        $key = ($bm['folder_id'] !== null) ? (int) $bm['folder_id'] : 0;
+        $bmByFolder[$key][] = $bm;
+    }
+}
+$foldersById = [];
+foreach ($folders ?? [] as $f) {
+    $foldersById[(int) $f['id']] = $f;
+}
+
+// Entête de dossier réutilisable dans les 3 vues
+$folderHeader = function(array $folder, bool $ro) use ($view): void { ?>
+<div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-3 rounded"
+     style="background:var(--bs-secondary-bg)">
+    <i class="bi bi-folder2-open text-warning"></i>
+    <span class="fw-semibold"><?= \App\Core\View::e($folder['name']) ?></span>
+    <?php if (!$ro): ?>
+    <span class="ms-auto d-flex gap-1">
+        <button type="button" class="btn btn-sm btn-outline-secondary ks-folder-rename py-0"
+                data-id="<?= (int) $folder['id'] ?>"
+                data-name="<?= \App\Core\View::e($folder['name']) ?>"
+                title="Renommer"><i class="bi bi-pencil"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-danger ks-folder-delete py-0"
+                data-id="<?= (int) $folder['id'] ?>"
+                data-name="<?= \App\Core\View::e($folder['name']) ?>"
+                title="Supprimer"><i class="bi bi-trash"></i></button>
+    </span>
+    <?php endif; ?>
+</div>
+<?php };
+?>
+
 <!-- ── Vue Badges ─────────────────────────────────────────────────────────── -->
 <?php if ($view === 'badges'): ?>
 
-<div class="ks-badges-grid">
-    <?php if (empty($bookmarks)): ?>
-        <p class="text-muted">Aucun favori.</p>
-    <?php endif; ?>
-    <?php foreach ($bookmarks as $bm): ?>
-        <?php $bg = BadgeStyles::gradient($bm['badge_style']); $bgColor = BadgeStyles::bg($bm['badge_style']); ?>
-        <div class="ks-badge" data-id="<?= $bm['id'] ?>" style="--ks-badge-color:<?= $bgColor ?>">
-            <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
-                <div class="ks-badge-thumb" style="background:<?= $bg ?>">
-                    <span><?= View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>
-                    <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
-                    <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?>"
-                          title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+<?php
+$renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
+    $bg = \App\Config\BadgeStyles::gradient($bm['badge_style']);
+    $bgColor = \App\Config\BadgeStyles::bg($bm['badge_style']);
+    ?>
+    <div class="ks-badge" data-id="<?= $bm['id'] ?>" style="--ks-badge-color:<?= $bgColor ?>">
+        <a href="<?= \App\Core\View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
+            <div class="ks-badge-thumb" style="background:<?= $bg ?>">
+                <span><?= \App\Core\View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>
+                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?>"
+                      title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+                <?php endif; ?>
+            </div>
+        </a>
+        <div class="ks-badge-footer">
+            <?php if (!$readOnly && $sort === 'position'): ?>
+            <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+            <?php endif; ?>
+            <span class="ks-badge-host"><?= \App\Core\View::e($bm['host']) ?></span>
+            <?php if (!$readOnly): ?>
+            <button class="ks-badge-edit btn btn-link p-0"
+                    data-bs-toggle="modal" data-bs-target="#bookmarkModal"
+                    data-mode="edit"
+                    data-id="<?= $bm['id'] ?>"
+                    data-url="<?= \App\Core\View::e($bm['url']) ?>"
+                    data-host="<?= \App\Core\View::e($bm['host']) ?>"
+                    data-title="<?= \App\Core\View::e($bm['title']) ?>"
+                    data-description="<?= \App\Core\View::e($bm['description']) ?>"
+                    data-badge-style="<?= \App\Core\View::e($bm['badge_style']) ?>"
+                    data-badge-text="<?= \App\Core\View::e($bm['badge_text']) ?>"
+                    data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
+                    data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
+                    data-list-id="<?= (int) $bm['list_id'] ?>"
+                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                <i class="bi bi-pencil"></i>
+            </button>
+            <button class="ks-quick-delete btn btn-link p-0"
+                    data-delete-id="<?= $bm['id'] ?>"
+                    title="Supprimer">
+                <i class="bi bi-trash"></i>
+            </button>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php
+};
+?>
+
+<?php if (!empty($folders)): ?>
+    <div id="ksFolderList" class="ks-badges-grid mb-3" data-list-id="<?= (int) $listId ?>">
+    <?php foreach ($folders as $folder): ?>
+        <?php $fid = (int) $folder['id']; ?>
+        <?php $bmCount = count($bookmarksByFolder[$fid] ?? []); ?>
+        <div class="ks-folder-group" data-folder-id="<?= $fid ?>">
+            <div class="ks-badge ks-folder-badge" style="--ks-badge-color:#0288D1">
+                <div class="ks-badge-thumb ks-folder-thumb collapsed"
+                     role="button"
+                     title="<?= View::e($folder['name']) ?>"
+                     data-bs-toggle="collapse"
+                     data-bs-target="#folderBadges<?= $fid ?>"
+                     aria-expanded="false"
+                     aria-controls="folderBadges<?= $fid ?>">
+                    <i class="bi bi-folder2 ks-folder-icon"></i>
+                    <span><?= View::e($folder['name']) ?></span>
+                    <span class="ks-folder-count" data-folder-count="<?= $fid ?>"><?= $bmCount ?></span>
+                    <i class="bi bi-chevron-down ks-folder-chevron"></i>
+                </div>
+                <div class="ks-badge-footer">
+                    <?php if (!$readOnly): ?>
+                    <span class="ks-drag-handle flex-shrink-0 text-muted" title="Réorganiser">
+                        <i class="bi bi-grip-vertical"></i>
+                    </span>
+                    <?php endif; ?>
+                    <span class="ks-badge-host"><?= View::e($folder['name']) ?></span>
+                    <?php if (!$readOnly): ?>
+                    <span class="d-flex gap-1 flex-shrink-0">
+                        <button type="button" class="ks-folder-rename btn btn-link p-0 ks-badge-edit"
+                                data-id="<?= $fid ?>" data-name="<?= View::e($folder['name']) ?>" title="Renommer">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button type="button" class="ks-folder-delete btn btn-link p-0 ks-badge-edit"
+                                data-id="<?= $fid ?>" data-name="<?= View::e($folder['name']) ?>" title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </span>
                     <?php endif; ?>
                 </div>
-            </a>
-            <div class="ks-badge-footer">
+            </div>
+        </div>
+    <?php endforeach; ?>
+    </div>
+    <?php foreach ($folders as $folder): ?>
+    <?php $fid = (int) $folder['id']; $isEmpty = empty($bmByFolder[$fid]); ?>
+    <div class="collapse" id="folderBadges<?= $fid ?>">
+        <div class="d-flex align-items-center gap-2 mb-2 mt-1 small text-muted px-1">
+            <i class="bi bi-folder2-open text-warning"></i>
+            <span class="fw-semibold"><?= View::e($folder['name']) ?></span>
+        </div>
+        <div class="ks-badges-grid mb-3<?= $isEmpty ? ' ks-drop-target-empty' : '' ?>"
+             data-folder-id="<?= $fid ?>"
+             data-list-id="<?= (int) $listId ?>">
+            <?php foreach ($bmByFolder[$fid] ?? [] as $bm): ?><?php $renderBadge($bm); ?><?php endforeach; ?>
+        </div>
+    </div>
+    <?php endforeach; ?>
+    <?php if (!empty($bmByFolder[0])): ?>
+    <?php if (count($bmByFolder) > 1): ?>
+    <div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-2 rounded"
+         style="background:var(--bs-secondary-bg)">
+        <i class="bi bi-inbox text-muted"></i>
+        <span class="text-muted fw-semibold">Sans dossier</span>
+    </div>
+    <?php endif; ?>
+    <div class="ks-badges-grid mb-2"
+         data-folder-id=""
+         data-list-id="<?= (int) $listId ?>">
+        <?php foreach ($bmByFolder[0] as $bm): ?><?php $renderBadge($bm); ?><?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+    <?php if (empty($bookmarks)): ?><p class="text-muted">Aucun favori.</p><?php endif; ?>
+<?php else: ?>
+<div class="ks-badges-grid">
+    <?php if (empty($bookmarks)): ?><p class="text-muted">Aucun favori.</p><?php endif; ?>
+    <?php foreach ($bookmarks as $bm): ?><?php $renderBadge($bm); ?><?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<!-- ── Vue Tableau ────────────────────────────────────────────────────────── -->
+<?php elseif ($view === 'table'): ?>
+
+<?php
+$renderTableRow = function(array $bm) use ($readOnly, $sort, $q): void {
+    $bg = \App\Config\BadgeStyles::gradient($bm['badge_style']); ?>
+    <tr data-id="<?= $bm['id'] ?>">
+        <td>
+            <div class="d-flex align-items-center gap-1">
                 <?php if (!$readOnly && $sort === 'position'): ?>
                 <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
                 <?php endif; ?>
-                <span class="ks-badge-host"><?= View::e($bm['host']) ?></span>
-                <?php if (!$readOnly): ?>
-                <button class="ks-badge-edit btn btn-link p-0"
+                <a href="<?= \App\Core\View::e($bm['url']) ?>" target="_blank" rel="noopener">
+                    <div class="ks-table-thumb" style="background:<?= $bg ?>"></div>
+                </a>
+            </div>
+        </td>
+        <td>
+            <div class="d-flex align-items-center gap-2">
+                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?> flex-shrink-0"
+                      title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+                <?php endif; ?>
+                <div>
+                    <a href="<?= \App\Core\View::e($bm['url']) ?>" target="_blank" rel="noopener"
+                       class="fw-semibold text-decoration-none text-body">
+                        <?= \App\Core\View::e($bm['title'] ?: $bm['host']) ?>
+                    </a>
+                    <div class="text-muted small"><?= \App\Core\View::e($bm['host']) ?></div>
+                </div>
+            </div>
+        </td>
+        <td class="text-muted small"><?= \App\Core\View::e($bm['list_name'] ?? '') ?></td>
+        <td>
+            <?php foreach (array_filter(explode(',', $bm['tags'] ?? '')) as $t): ?>
+                <a href="<?= $q(['tag' => trim($t)]) ?>"
+                   class="badge text-bg-secondary text-decoration-none me-1">
+                    <?= \App\Core\View::e(trim($t)) ?>
+                </a>
+            <?php endforeach; ?>
+        </td>
+        <td>
+            <?php if ($bm['visibility'] === 'public'): ?>
+                <span class="badge text-bg-success">Public</span>
+            <?php else: ?>
+                <span class="badge ks-badge-private">Privé</span>
+            <?php endif; ?>
+        </td>
+        <?php if (!$readOnly): ?>
+        <td>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-secondary"
                         data-bs-toggle="modal" data-bs-target="#bookmarkModal"
                         data-mode="edit"
                         data-id="<?= $bm['id'] ?>"
-                        data-url="<?= View::e($bm['url']) ?>"
-                        data-host="<?= View::e($bm['host']) ?>"
-                        data-title="<?= View::e($bm['title']) ?>"
-                        data-description="<?= View::e($bm['description']) ?>"
-                        data-badge-style="<?= View::e($bm['badge_style']) ?>"
-                        data-badge-text="<?= View::e($bm['badge_text']) ?>"
-                        data-tags="<?= View::e($bm['tags']) ?>"
-                        data-visibility="<?= View::e($bm['visibility']) ?>"
-                        data-list-id="<?= (int) $bm['list_id'] ?>">
+                        data-url="<?= \App\Core\View::e($bm['url']) ?>"
+                        data-host="<?= \App\Core\View::e($bm['host']) ?>"
+                        data-title="<?= \App\Core\View::e($bm['title']) ?>"
+                        data-description="<?= \App\Core\View::e($bm['description']) ?>"
+                        data-badge-style="<?= \App\Core\View::e($bm['badge_style']) ?>"
+                        data-badge-text="<?= \App\Core\View::e($bm['badge_text']) ?>"
+                        data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
+                        data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
+                        data-list-id="<?= (int) $bm['list_id'] ?>"
+                        data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
-                <button class="ks-quick-delete btn btn-link p-0"
+                <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
                         data-delete-id="<?= $bm['id'] ?>"
                         title="Supprimer">
                     <i class="bi bi-trash"></i>
                 </button>
+            </div>
+        </td>
+        <?php endif; ?>
+    </tr>
+    <?php
+};
+$tableFolderRow = function(array $folder, bool $ro, int $cols) use ($view): void { ?>
+    <tr class="ks-table-folder-row">
+        <td colspan="<?= $cols ?>" class="py-1 px-2" style="background:var(--bs-secondary-bg)">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-folder2-open text-warning"></i>
+                <span class="fw-semibold"><?= \App\Core\View::e($folder['name']) ?></span>
+                <?php if (!$ro): ?>
+                <span class="ms-auto d-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary ks-folder-rename py-0"
+                            data-id="<?= (int) $folder['id'] ?>"
+                            data-name="<?= \App\Core\View::e($folder['name']) ?>"
+                            title="Renommer"><i class="bi bi-pencil"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger ks-folder-delete py-0"
+                            data-id="<?= (int) $folder['id'] ?>"
+                            data-name="<?= \App\Core\View::e($folder['name']) ?>"
+                            title="Supprimer"><i class="bi bi-trash"></i></button>
+                </span>
                 <?php endif; ?>
             </div>
-        </div>
-    <?php endforeach; ?>
-</div>
-
-<!-- ── Vue Tableau ────────────────────────────────────────────────────────── -->
-<?php elseif ($view === 'table'): ?>
+        </td>
+    </tr>
+    <?php
+};
+$cols = $readOnly ? 5 : 6;
+?>
 
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle ks-table">
@@ -285,150 +512,308 @@ $badgeStyles = BadgeStyles::all();
                 <th>Liste</th>
                 <th>Tags</th>
                 <th>Visibilité</th>
-                <th style="width:88px"></th>
+                <?php if (!$readOnly): ?><th style="width:88px"></th><?php endif; ?>
             </tr>
         </thead>
         <tbody>
         <?php if (empty($bookmarks)): ?>
-            <tr><td colspan="6" class="text-muted text-center py-3">Aucun favori.</td></tr>
-        <?php endif; ?>
-        <?php foreach ($bookmarks as $bm): ?>
-            <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
-            <tr data-id="<?= $bm['id'] ?>">
-                <td>
-                    <div class="d-flex align-items-center gap-1">
-                        <?php if (!$readOnly && $sort === 'position'): ?>
-                        <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
-                        <?php endif; ?>
-                        <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener">
-                            <div class="ks-table-thumb" style="background:<?= $bg ?>"></div>
-                        </a>
-                    </div>
-                </td>
-                <td>
-                    <div class="d-flex align-items-center gap-2">
-                        <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
-                        <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?> flex-shrink-0"
-                              title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
-                        <?php endif; ?>
-                        <div>
-                            <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
-                               class="fw-semibold text-decoration-none text-body">
-                                <?= View::e($bm['title'] ?: $bm['host']) ?>
-                            </a>
-                            <div class="text-muted small"><?= View::e($bm['host']) ?></div>
-                        </div>
-                    </div>
-                </td>
-                <td class="text-muted small"><?= View::e($bm['list_name'] ?? '') ?></td>
-                <td>
-                    <?php foreach (array_filter(explode(',', $bm['tags'] ?? '')) as $t): ?>
-                        <a href="<?= $q(['tag' => trim($t)]) ?>"
-                           class="badge text-bg-secondary text-decoration-none me-1">
-                            <?= View::e(trim($t)) ?>
-                        </a>
-                    <?php endforeach; ?>
-                </td>
-                <td>
-                    <?php if ($bm['visibility'] === 'public'): ?>
-                        <span class="badge text-bg-success">Public</span>
-                    <?php else: ?>
-                        <span class="badge ks-badge-private">Privé</span>
-                    <?php endif; ?>
-                </td>
-                <?php if (!$readOnly): ?>
-                <td>
-                    <div class="d-flex gap-1">
-                        <button class="btn btn-sm btn-outline-secondary"
-                                data-bs-toggle="modal" data-bs-target="#bookmarkModal"
-                                data-mode="edit"
-                                data-id="<?= $bm['id'] ?>"
-                                data-url="<?= View::e($bm['url']) ?>"
-                                data-host="<?= View::e($bm['host']) ?>"
-                                data-title="<?= View::e($bm['title']) ?>"
-                                data-description="<?= View::e($bm['description']) ?>"
-                                data-badge-style="<?= View::e($bm['badge_style']) ?>"
-                                data-badge-text="<?= View::e($bm['badge_text']) ?>"
-                                data-tags="<?= View::e($bm['tags']) ?>"
-                                data-visibility="<?= View::e($bm['visibility']) ?>"
-                                data-list-id="<?= (int) $bm['list_id'] ?>">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
-                                data-delete-id="<?= $bm['id'] ?>"
-                                title="Supprimer">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </td>
+            <tr><td colspan="<?= $cols ?>" class="text-muted text-center py-3">Aucun favori.</td></tr>
+        <?php elseif (!empty($bmByFolder)): ?>
+            <?php foreach ($folders as $folder): ?>
+                <?php $fid = (int) $folder['id']; if (empty($bmByFolder[$fid])) continue; ?>
+                <?php $tableFolderRow($folder, $readOnly, $cols); ?>
+                <?php foreach ($bmByFolder[$fid] as $bm): ?><?php $renderTableRow($bm); ?><?php endforeach; ?>
+            <?php endforeach; ?>
+            <?php if (!empty($bmByFolder[0])): ?>
+                <?php if (count($bmByFolder) > 1): ?>
+                <tr class="ks-table-folder-row">
+                    <td colspan="<?= $cols ?>" class="py-1 px-2" style="background:var(--bs-secondary-bg)">
+                        <i class="bi bi-inbox text-muted me-2"></i>
+                        <span class="text-muted fw-semibold">Sans dossier</span>
+                    </td>
+                </tr>
                 <?php endif; ?>
-            </tr>
-        <?php endforeach; ?>
+                <?php foreach ($bmByFolder[0] as $bm): ?><?php $renderTableRow($bm); ?><?php endforeach; ?>
+            <?php endif; ?>
+        <?php else: ?>
+            <?php foreach ($bookmarks as $bm): ?><?php $renderTableRow($bm); ?><?php endforeach; ?>
+        <?php endif; ?>
         </tbody>
     </table>
 </div>
 
 <!-- ── Vue Liste compacte ─────────────────────────────────────────────────── -->
-<?php else: ?>
+<?php elseif ($view === 'list'): ?>
 
-<div class="ks-compact-list">
-    <?php if (empty($bookmarks)): ?>
-        <p class="text-muted">Aucun favori.</p>
-    <?php endif; ?>
-    <?php foreach ($bookmarks as $bm): ?>
-        <?php $bg = BadgeStyles::gradient($bm['badge_style']); ?>
-        <div class="ks-compact-item" data-id="<?= $bm['id'] ?>">
-            <?php if (!$readOnly && $sort === 'position'): ?>
-            <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
-            <?php endif; ?>
-            <div class="ks-compact-dot" style="background:<?= $bg ?>"></div>
-            <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
-            <span class="ks-link-dot ks-link-dot--<?= View::e($bm['last_check_status']) ?>"
-                  title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
-            <?php endif; ?>
-            <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
-               class="ks-compact-title text-decoration-none text-body fw-semibold">
-                <?= View::e($bm['title'] ?: $bm['host']) ?>
-            </a>
-            <span class="ks-compact-host text-muted small"><?= View::e($bm['host']) ?></span>
-            <div class="ks-compact-tags">
-                <?php foreach (array_filter(explode(',', $bm['tags'] ?? '')) as $t): ?>
-                    <a href="<?= $q(['tag' => trim($t)]) ?>"
-                       class="badge text-bg-secondary text-decoration-none">
-                        <?= View::e(trim($t)) ?>
-                    </a>
-                <?php endforeach; ?>
-            </div>
-            <?php if (!$readOnly): ?>
-            <button class="ks-compact-edit btn btn-link p-0 ms-auto"
-                    data-bs-toggle="modal" data-bs-target="#bookmarkModal"
-                    data-mode="edit"
-                    data-id="<?= $bm['id'] ?>"
-                    data-url="<?= View::e($bm['url']) ?>"
-                    data-host="<?= View::e($bm['host']) ?>"
-                    data-title="<?= View::e($bm['title']) ?>"
-                    data-description="<?= View::e($bm['description']) ?>"
-                    data-badge-style="<?= View::e($bm['badge_style']) ?>"
-                    data-badge-text="<?= View::e($bm['badge_text']) ?>"
-                    data-tags="<?= View::e($bm['tags']) ?>"
-                    data-visibility="<?= View::e($bm['visibility']) ?>"
-                    data-list-id="<?= (int) $bm['list_id'] ?>">
-                <i class="bi bi-pencil text-secondary"></i>
-            </button>
-            <button class="ks-quick-delete btn btn-link p-0"
-                    data-delete-id="<?= $bm['id'] ?>"
-                    title="Supprimer">
-                <i class="bi bi-trash"></i>
-            </button>
-            <?php endif; ?>
+<?php
+$renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
+    $bg = \App\Config\BadgeStyles::gradient($bm['badge_style']); ?>
+    <div class="ks-compact-item" data-id="<?= $bm['id'] ?>">
+        <?php if (!$readOnly && $sort === 'position'): ?>
+        <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+        <?php endif; ?>
+        <div class="ks-compact-dot" style="background:<?= $bg ?>"></div>
+        <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+        <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?>"
+              title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
+        <?php endif; ?>
+        <a href="<?= \App\Core\View::e($bm['url']) ?>" target="_blank" rel="noopener"
+           class="ks-compact-title text-decoration-none text-body fw-semibold">
+            <?= \App\Core\View::e($bm['title'] ?: $bm['host']) ?>
+        </a>
+        <span class="ks-compact-host text-muted small"><?= \App\Core\View::e($bm['host']) ?></span>
+        <div class="ks-compact-tags">
+            <?php foreach (array_filter(explode(',', $bm['tags'] ?? '')) as $t): ?>
+                <a href="<?= $q(['tag' => trim($t)]) ?>"
+                   class="badge text-bg-secondary text-decoration-none">
+                    <?= \App\Core\View::e(trim($t)) ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+        <?php if (!$readOnly): ?>
+        <button class="ks-compact-edit btn btn-link p-0 ms-auto"
+                data-bs-toggle="modal" data-bs-target="#bookmarkModal"
+                data-mode="edit"
+                data-id="<?= $bm['id'] ?>"
+                data-url="<?= \App\Core\View::e($bm['url']) ?>"
+                data-host="<?= \App\Core\View::e($bm['host']) ?>"
+                data-title="<?= \App\Core\View::e($bm['title']) ?>"
+                data-description="<?= \App\Core\View::e($bm['description']) ?>"
+                data-badge-style="<?= \App\Core\View::e($bm['badge_style']) ?>"
+                data-badge-text="<?= \App\Core\View::e($bm['badge_text']) ?>"
+                data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
+                data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
+                data-list-id="<?= (int) $bm['list_id'] ?>"
+                data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+            <i class="bi bi-pencil text-secondary"></i>
+        </button>
+        <button class="ks-quick-delete btn btn-link p-0"
+                data-delete-id="<?= $bm['id'] ?>"
+                title="Supprimer">
+            <i class="bi bi-trash"></i>
+        </button>
+        <?php endif; ?>
+    </div>
+    <?php
+};
+?>
+
+<?php if (empty($bookmarks)): ?>
+    <p class="text-muted">Aucun favori.</p>
+<?php elseif (!empty($bmByFolder)): ?>
+    <?php foreach ($folders as $folder): ?>
+        <?php $fid = (int) $folder['id']; if (empty($bmByFolder[$fid])) continue; ?>
+        <?php $folderHeader($folder, $readOnly); ?>
+        <div class="ks-compact-list mb-2">
+            <?php foreach ($bmByFolder[$fid] as $bm): ?><?php $renderListItem($bm); ?><?php endforeach; ?>
         </div>
     <?php endforeach; ?>
+    <?php if (!empty($bmByFolder[0])): ?>
+        <?php if (count($bmByFolder) > 1): ?>
+        <div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-2 rounded"
+             style="background:var(--bs-secondary-bg)">
+            <i class="bi bi-inbox text-muted"></i>
+            <span class="text-muted fw-semibold">Sans dossier</span>
+        </div>
+        <?php endif; ?>
+        <div class="ks-compact-list mb-2">
+            <?php foreach ($bmByFolder[0] as $bm): ?><?php $renderListItem($bm); ?><?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+<?php else: ?>
+<div class="ks-compact-list">
+    <?php foreach ($bookmarks as $bm): ?><?php $renderListItem($bm); ?><?php endforeach; ?>
+</div>
+<?php endif; ?>
+
+<!-- ── Vue Explorateur ────────────────────────────────────────────────────── -->
+<?php elseif ($view === 'explorer' && !$readOnly): ?>
+
+<?php if ($listId === null): ?>
+    <div class="alert alert-info mb-0">Sélectionnez une liste pour utiliser l'explorateur de dossiers.</div>
+<?php else: ?>
+    <?php
+    $renderExplorerNodes = function (?int $parentId = null, bool $collapsed = false) use (&$renderExplorerNodes, $foldersByParent, $bookmarksByFolder, $q): void {
+        $parentKey = $parentId ?? 0;
+        $childFolders = $foldersByParent[$parentKey] ?? [];
+        $childBookmarks = $bookmarksByFolder[$parentKey] ?? [];
+
+        $nodes = [];
+        foreach ($childFolders as $folder) {
+            $nodes[] = ['type' => 'folder', 'position' => (int) $folder['position'], 'data' => $folder];
+        }
+        foreach ($childBookmarks as $bookmark) {
+            $nodes[] = ['type' => 'bookmark', 'position' => (int) $bookmark['position'], 'data' => $bookmark];
+        }
+
+        usort($nodes, function($a, $b) {
+            // Dossiers toujours avant les favoris, puis tri par position dans chaque groupe
+            $typeOrder = ['folder' => 0, 'bookmark' => 1];
+            $t = ($typeOrder[$a['type']] ?? 1) <=> ($typeOrder[$b['type']] ?? 1);
+            return $t !== 0 ? $t : $a['position'] <=> $b['position'];
+        });
+        ?>
+        <div class="ks-explorer-dropzone<?= $collapsed ? ' d-none' : '' ?>" data-parent-id="<?= $parentId ?? '' ?>">
+            <?php foreach ($nodes as $node): ?>
+                <?php if ($node['type'] === 'folder'): ?>
+                    <?php $folder = $node['data']; ?>
+                    <div class="ks-explorer-node ks-explorer-folder" data-type="folder" data-id="<?= (int) $folder['id'] ?>">
+                        <div class="ks-explorer-row">
+                            <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                            <button type="button" class="btn btn-link p-0 text-decoration-none ks-folder-toggle" data-folder-id="<?= (int) $folder['id'] ?>" aria-expanded="false">
+                                <i class="bi bi-caret-right-fill"></i>
+                            </button>
+                            <i class="bi bi-folder2 text-warning"></i>
+                            <span class="fw-semibold"><?= View::e($folder['name']) ?></span>
+                            <?php $folderBmCount = count($bookmarksByFolder[(int)$folder['id']] ?? []); ?>
+                            <?php if ($folderBmCount > 0): ?>
+                            <span class="badge text-bg-secondary ms-1"><?= $folderBmCount ?></span>
+                            <?php endif; ?>
+                            <span class="ms-auto d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-secondary ks-folder-create-child" data-id="<?= (int) $folder['id'] ?>" data-name="<?= View::e($folder['name']) ?>" title="Nouveau sous-dossier"><i class="bi bi-folder-plus"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ks-folder-rename" data-id="<?= (int) $folder['id'] ?>" data-name="<?= View::e($folder['name']) ?>" title="Renommer"><i class="bi bi-pencil"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ks-folder-delete" data-id="<?= (int) $folder['id'] ?>" data-name="<?= View::e($folder['name']) ?>" title="Supprimer"><i class="bi bi-trash"></i></button>
+                            </span>
+                        </div>
+                        <?php $renderExplorerNodes((int) $folder['id'], true); ?>
+                    </div>
+                <?php else: ?>
+                    <?php $bm = $node['data']; ?>
+                    <div class="ks-explorer-node ks-explorer-bookmark" data-type="bookmark" data-id="<?= (int) $bm['id'] ?>">
+                        <div class="ks-explorer-row">
+                            <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                            <div class="ks-compact-dot flex-shrink-0" style="background:<?= \App\Config\BadgeStyles::gradient($bm['badge_style']) ?>"></div>
+                            <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener" class="text-decoration-none text-body fw-semibold flex-grow-1 text-truncate">
+                                <?= View::e($bm['title'] ?: $bm['host']) ?>
+                            </a>
+                            <span class="text-muted small text-truncate" style="max-width:220px"><?= View::e($bm['host']) ?></span>
+                            <button class="btn btn-sm btn-outline-secondary ms-2"
+                                    data-bs-toggle="modal" data-bs-target="#bookmarkModal"
+                                    data-mode="edit"
+                                    data-id="<?= $bm['id'] ?>"
+                                    data-url="<?= View::e($bm['url']) ?>"
+                                    data-host="<?= View::e($bm['host']) ?>"
+                                    data-title="<?= View::e($bm['title']) ?>"
+                                    data-description="<?= View::e($bm['description']) ?>"
+                                    data-badge-style="<?= View::e($bm['badge_style']) ?>"
+                                    data-badge-text="<?= View::e($bm['badge_text']) ?>"
+                                    data-tags="<?= View::e($bm['tags']) ?>"
+                                    data-visibility="<?= View::e($bm['visibility']) ?>"
+                                    data-list-id="<?= (int) $bm['list_id'] ?>"
+                                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
+        <?php
+    };
+    ?>
+
+    <p class="text-muted small mb-3">Glissez-déposez dossiers et favoris pour les réorganiser.</p>
+
+    <div class="ks-explorer-tree" id="ksExplorerTree" data-list-id="<?= (int) $listId ?>">
+        <?php $renderExplorerNodes(null); ?>
+    </div>
+<?php endif; ?>
+
+<?php endif; ?>
+
+<!-- ── Modals & formulaires de gestion des dossiers (toutes vues) ─────────── -->
+<?php if (!$readOnly && $listId !== null): ?>
+
+<form method="post" action="?action=bookmark_folder_store" id="folderCreateForm" class="d-none">
+    <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+    <input type="hidden" name="list_id" value="<?= (int) $listId ?>">
+    <input type="hidden" name="parent_id" id="folderCreateParentId" value="">
+    <input type="hidden" name="name" id="folderCreateName" value="">
+    <input type="hidden" name="_list_id" value="<?= (int) $listId ?>">
+    <input type="hidden" name="_view" value="<?= View::e($view) ?>">
+</form>
+
+<form method="post" action="?action=bookmark_folder_rename" id="folderRenameForm" class="d-none">
+    <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+    <input type="hidden" name="id" id="folderRenameId" value="">
+    <input type="hidden" name="name" id="folderRenameName" value="">
+    <input type="hidden" name="_list_id" value="<?= (int) $listId ?>">
+    <input type="hidden" name="_view" value="<?= View::e($view) ?>">
+</form>
+
+<form method="post" action="?action=bookmark_folder_delete" id="folderDeleteForm" class="d-none">
+    <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+    <input type="hidden" name="id" id="folderDeleteId" value="">
+    <input type="hidden" name="_list_id" value="<?= (int) $listId ?>">
+    <input type="hidden" name="_view" value="<?= View::e($view) ?>">
+</form>
+
+<div class="modal fade ks-modal" id="folderCreateModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="folderCreateModalTitle">Créer un dossier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2 text-muted small" id="folderCreateModalHint"></div>
+                <label class="form-label">Nom du dossier</label>
+                <input type="text" class="form-control" id="folderCreateModalInput" maxlength="120" placeholder="Nom du dossier">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="folderCreateModalConfirm">Créer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade ks-modal" id="folderRenameModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Renommer le dossier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Nouveau nom</label>
+                <input type="text" class="form-control" id="folderRenameModalInput" maxlength="120" placeholder="Nouveau nom">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="folderRenameModalConfirm">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade ks-modal" id="folderDeleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-1">
+                <h6 class="modal-title fw-semibold">
+                    <i class="bi bi-trash text-danger me-2"></i>Supprimer le dossier ?
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-2">
+                <p class="text-muted small mb-1" id="folderDeleteModalTitle"></p>
+                <p class="text-muted small mb-0">Les sous-dossiers et favoris seront remontés d'un niveau.</p>
+            </div>
+            <div class="modal-footer border-0 pt-1 gap-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger btn-sm" id="folderDeleteModalConfirm">
+                    <i class="bi bi-trash me-1"></i>Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php endif; ?>
 
 <!-- ── Pagination ─────────────────────────────────────────────────────────── -->
-<?php if ($totalPages > 1 || $showAll): ?>
+<?php if ($view !== 'explorer' && ($totalPages > 1 || $showAll)): ?>
 <nav class="ks-pagination" aria-label="Pagination">
 
     <?php if (!$showAll): ?>
@@ -573,6 +958,23 @@ $badgeStyles = BadgeStyles::all();
                     </div>
 
                     <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Dossier</label>
+                            <select class="form-select" name="folder_id" id="bmFolderId">
+                                <option value="">— Racine de la liste —</option>
+                                <?php foreach (($folders ?? []) as $folder): ?>
+                                    <option value="<?= (int) $folder['id'] ?>"
+                                            data-list-id="<?= (int) $folder['list_id'] ?>"
+                                            data-parent-id="<?= $folder['parent_id'] !== null ? (int) $folder['parent_id'] : '' ?>">
+                                        <?= View::e($folder['name']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Le dossier doit appartenir à la liste sélectionnée.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
                         <!-- Texte du badge -->
                         <div class="col-md-6">
                             <label class="form-label">Texte du badge</label>
@@ -658,6 +1060,27 @@ $badgeStyles = BadgeStyles::all();
     const modal     = document.getElementById('bookmarkModal');
     const form      = document.getElementById('bookmarkForm');
     const deleteForm = document.getElementById('deleteForm');
+    const folderSelect = document.getElementById('bmFolderId');
+
+    function syncFolderOptionsByList(listId) {
+        if (!folderSelect) return;
+        const target = String(listId || '');
+        [...folderSelect.options].forEach((opt, idx) => {
+            if (idx === 0) {
+                opt.hidden = false;
+                opt.disabled = false;
+                return;
+            }
+            const belongs = opt.dataset.listId === target;
+            opt.hidden = !belongs;
+            opt.disabled = !belongs;
+        });
+
+        const selected = folderSelect.options[folderSelect.selectedIndex];
+        if (selected && selected.disabled) {
+            folderSelect.value = '';
+        }
+    }
 
     // Populate modal on show
     modal.addEventListener('show.bs.modal', function (e) {
@@ -685,6 +1108,8 @@ $badgeStyles = BadgeStyles::all();
             document.getElementById('bmTags').value        = btn.dataset.tags;
             const listItem = document.querySelector(`#bmListItems .dropdown-item[data-value="${btn.dataset.listId}"]`);
             selectList(btn.dataset.listId, listItem?.dataset.label ?? listItem?.textContent.trim());
+            syncFolderOptionsByList(btn.dataset.listId);
+            folderSelect.value = btn.dataset.folderId || '';
             document.getElementById('bmVisibility').value  = btn.dataset.visibility;
             document.getElementById('deleteId').value      = btn.dataset.id;
             selectBadgeStyle(btn.dataset.badgeStyle);
@@ -692,6 +1117,8 @@ $badgeStyles = BadgeStyles::all();
             form.reset();
             document.getElementById('bmId').value = '';
             selectList('', '— Aucune —');
+            syncFolderOptionsByList('');
+            folderSelect.value = '';
             selectBadgeStyle('deepBlue');
         }
     });
@@ -784,6 +1211,7 @@ $badgeStyles = BadgeStyles::all();
     function selectList(value, label) {
         document.getElementById('bmListId').value  = value;
         document.getElementById('bmListLabel').textContent = label || '— Aucune —';
+        syncFolderOptionsByList(value);
         // Marquer l'item actif
         document.querySelectorAll('#bmListItems .dropdown-item').forEach(a => {
             a.classList.toggle('active', a.dataset.value === String(value));
@@ -822,11 +1250,14 @@ $badgeStyles = BadgeStyles::all();
 })();
 </script>
 
-<?php if ($sort === 'position'): ?>
+<?php if ($sort === 'position' || $view === 'explorer' || (!$readOnly && $listId !== null)): ?>
+<?php if ($sort === 'position' || $view === 'explorer'): ?>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+<?php endif; ?>
 <script>
 (function () {
     const csrf = <?= json_encode($csrf) ?>;
+    const view = <?= json_encode($view) ?>;
 
     async function saveOrder(ids) {
         try {
@@ -841,7 +1272,7 @@ $badgeStyles = BadgeStyles::all();
     }
 
     function makeSortable(el, childSelector) {
-        if (!el) return;
+        if (!el || typeof Sortable === 'undefined') return;
         new Sortable(el, {
             handle: '.ks-drag-handle',
             animation: 150,
@@ -856,9 +1287,291 @@ $badgeStyles = BadgeStyles::all();
         });
     }
 
-    makeSortable(document.querySelector('.ks-badges-grid'),  '.ks-badge');
-    makeSortable(document.querySelector('.ks-compact-list'), '.ks-compact-item');
-    makeSortable(document.querySelector('table tbody'),      'tr');
+    // ── Tri drag&drop (vues badges/tableau/liste) ────────────────────────────
+    if (view !== 'explorer') {
+        // Vue badges : cross-folder si data-folder-id présent, sinon tri simple
+        const folderGrids = document.querySelectorAll('.ks-badges-grid[data-folder-id]');
+        if (folderGrids.length > 0 && typeof Sortable !== 'undefined') {
+            const listId = parseInt(
+                (document.getElementById('ksFolderList') || folderGrids[0]).dataset.listId || '0', 10
+            );
+
+            // Réorganisation des dossiers eux-mêmes
+            const folderList = document.getElementById('ksFolderList');
+            if (folderList) {
+                new Sortable(folderList, {
+                    handle: '.ks-drag-handle',
+                    animation: 150,
+                    ghostClass: 'ks-sortable-ghost',
+                    chosenClass: 'ks-sortable-chosen',
+                    async onEnd() {
+                        const items = [...folderList.querySelectorAll(':scope > .ks-folder-group')]
+                            .map((el, pos) => ({ type: 'folder', id: parseInt(el.dataset.folderId, 10), pos }))
+                            .filter(i => i.id);
+                        try {
+                            await fetch('?action=bookmark_explorer_reorder', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    _csrf: csrf,
+                                    list_id: listId,
+                                    parent_id: null,
+                                    items: items.map(i => ({ type: i.type, id: i.id })),
+                                }),
+                            });
+                        } catch (e) { console.error('Erreur ordre dossiers:', e); }
+                    },
+                });
+            }
+
+            async function saveBadgesContainer(container) {
+                const folderId = container.dataset.folderId;
+                const parentId = (folderId === '' || folderId === undefined) ? null : parseInt(folderId, 10);
+                const items = [...container.querySelectorAll(':scope > .ks-badge')]
+                    .map(el => ({ type: 'bookmark', id: parseInt(el.dataset.id, 10) }))
+                    .filter(i => i.id);
+                try {
+                    await fetch('?action=bookmark_explorer_reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ _csrf: csrf, list_id: listId, parent_id: parentId, items }),
+                    });
+                } catch (e) { console.error('Erreur sauvegarde dossier badge:', e); }
+            }
+
+            function updateFolderCount(grid) {
+                const folderId = grid.dataset.folderId;
+                if (folderId === undefined) return;
+                // Compte les badges dans TOUTES les grids de ce dossier (visible + collapse)
+                const allGrids = folderId === ''
+                    ? document.querySelectorAll('.ks-badges-grid[data-folder-id=""]')
+                    : document.querySelectorAll(`.ks-badges-grid[data-folder-id="${folderId}"]`);
+                let total = 0;
+                allGrids.forEach(g => { total += g.querySelectorAll(':scope > .ks-badge').length; });
+                if (folderId !== '') {
+                    const badge = document.querySelector(`[data-folder-count="${folderId}"]`);
+                    if (badge) badge.textContent = total;
+                }
+            }
+
+            // ── Hover-to-open : ouvre un dossier replié après 600ms de survol ──
+            let hoverTimer = null;
+            let hoverOpenedTriggers = new Set();
+
+            function cancelHoverOpen() {
+                clearTimeout(hoverTimer);
+                hoverTimer = null;
+            }
+
+            function closeHoverOpenedFolders() {
+                hoverOpenedTriggers.forEach(trigger => {
+                    const targetId = (trigger.dataset.bsTarget || '').replace('#', '');
+                    const collapseEl = targetId ? document.getElementById(targetId) : null;
+                    if (collapseEl) bootstrap.Collapse.getOrCreateInstance(collapseEl).hide();
+                    collapseEl?.querySelectorAll('.ks-drop-target-empty').forEach(g => g.classList.remove('ks-drop-target-empty'));
+                });
+                hoverOpenedTriggers.clear();
+            }
+
+            document.querySelectorAll('.ks-folder-group').forEach(group => {
+                group.addEventListener('dragover', e => {
+                    e.preventDefault();
+                    const trigger = group.querySelector('[data-bs-toggle="collapse"]');
+                    if (!trigger || !trigger.classList.contains('collapsed')) return;
+                    if (hoverTimer) return;
+                    hoverTimer = setTimeout(() => {
+                        hoverTimer = null;
+                        const targetId = (trigger.dataset.bsTarget || '').replace('#', '');
+                        const collapseEl = targetId ? document.getElementById(targetId) : null;
+                        if (!collapseEl) return;
+                        hoverOpenedTriggers.add(trigger);
+                        bootstrap.Collapse.getOrCreateInstance(collapseEl).show();
+                        collapseEl.querySelectorAll('.ks-badges-grid').forEach(g => {
+                            if (!g.querySelector('.ks-badge:not(.ks-folder-badge)')) g.classList.add('ks-drop-target-empty');
+                        });
+                    }, 350);
+                });
+                group.addEventListener('dragleave', cancelHoverOpen);
+            });
+
+            folderGrids.forEach(grid => {
+                new Sortable(grid, {
+                    group: 'ks-badges',
+                    handle: '.ks-drag-handle',
+                    animation: 150,
+                    ghostClass: 'ks-sortable-ghost',
+                    chosenClass: 'ks-sortable-chosen',
+                    onEnd(evt) {
+                        cancelHoverOpen();
+                        // Ferme les dossiers ouverts par survol, SAUF celui où le favori a été déposé
+                        const droppedIntoCollapse = evt.to.closest('.collapse');
+                        hoverOpenedTriggers.forEach(trigger => {
+                            const targetId = (trigger.dataset.bsTarget || '').replace('#', '');
+                            const collapseEl = targetId ? document.getElementById(targetId) : null;
+                            if (collapseEl && collapseEl === droppedIntoCollapse) return; // garder ouvert
+                            if (collapseEl) {
+                                bootstrap.Collapse.getOrCreateInstance(collapseEl).hide();
+                                collapseEl.querySelectorAll('.ks-drop-target-empty').forEach(g => g.classList.remove('ks-drop-target-empty'));
+                            }
+                        });
+                        hoverOpenedTriggers.clear();
+                        saveBadgesContainer(evt.to);
+                        if (evt.from !== evt.to) {
+                            saveBadgesContainer(evt.from);
+                            updateFolderCount(evt.to);
+                            updateFolderCount(evt.from);
+                        }
+                        // Maj visuel zone vide
+                        [evt.to, evt.from].forEach(g => {
+                            const empty = g.querySelectorAll(':scope > .ks-badge').length === 0;
+                            g.classList.toggle('ks-drop-target-empty', empty);
+                        });
+                    },
+                });
+            });
+        } else {
+            document.querySelectorAll('.ks-badges-grid').forEach(el => makeSortable(el, '.ks-badge'));
+        }
+
+        document.querySelectorAll('.ks-compact-list').forEach(el => makeSortable(el, '.ks-compact-item'));
+        makeSortable(document.querySelector('table tbody'), 'tr');
+    }
+
+    // ── Drag&drop explorateur ─────────────────────────────────────────────────
+    const tree = document.getElementById('ksExplorerTree');
+    if (tree) {
+        async function saveExplorerContainer(container) {
+            const listId = parseInt(tree.dataset.listId || '0', 10);
+            if (!listId) return;
+            const parentRaw = container.dataset.parentId;
+            const parentId = parentRaw === '' ? null : parseInt(parentRaw, 10);
+            const items = [...container.children]
+                .filter(node => node.classList.contains('ks-explorer-node'))
+                .map(node => ({ type: node.dataset.type, id: parseInt(node.dataset.id, 10) }))
+                .filter(i => i.type && i.id);
+            await fetch('?action=bookmark_explorer_reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ _csrf: csrf, list_id: listId, parent_id: parentId, items }),
+            });
+        }
+        document.querySelectorAll('.ks-explorer-dropzone').forEach(container => {
+            new Sortable(container, {
+                group: 'ks-explorer',
+                handle: '.ks-drag-handle',
+                animation: 150,
+                ghostClass: 'ks-sortable-ghost',
+                chosenClass: 'ks-sortable-chosen',
+                onEnd(evt) {
+                    const promises = [saveExplorerContainer(evt.to)];
+                    if (evt.from && evt.from !== evt.to) promises.push(saveExplorerContainer(evt.from));
+                    Promise.all(promises).catch(console.error);
+                },
+            });
+        });
+    }
+
+    // ── Gestion des dossiers (toutes les vues) ────────────────────────────────
+    const folderCreateModalEl = document.getElementById('folderCreateModal');
+    if (!folderCreateModalEl) return;
+
+    const folderRenameModalEl = document.getElementById('folderRenameModal');
+    const folderDeleteModalEl = document.getElementById('folderDeleteModal');
+    const folderCreateInput  = document.getElementById('folderCreateModalInput');
+    const folderRenameInput  = document.getElementById('folderRenameModalInput');
+
+    let pendingCreateParentId = '';
+    let pendingRenameId = '';
+    let pendingDeleteId = '';
+
+    folderCreateModalEl.addEventListener('shown.bs.modal', () => folderCreateInput?.focus());
+    folderRenameModalEl.addEventListener('shown.bs.modal', () => folderRenameInput?.focus());
+
+    document.getElementById('folderCreateModalConfirm').addEventListener('click', () => {
+        const name = folderCreateInput.value.trim();
+        if (!name) { folderCreateInput.focus(); return; }
+        document.getElementById('folderCreateParentId').value = pendingCreateParentId;
+        document.getElementById('folderCreateName').value = name;
+        bootstrap.Modal.getOrCreateInstance(folderCreateModalEl).hide();
+        document.getElementById('folderCreateForm').submit();
+    });
+
+    document.getElementById('folderRenameModalConfirm').addEventListener('click', () => {
+        const name = folderRenameInput.value.trim();
+        if (!name) { folderRenameInput.focus(); return; }
+        document.getElementById('folderRenameId').value = pendingRenameId;
+        document.getElementById('folderRenameName').value = name;
+        bootstrap.Modal.getOrCreateInstance(folderRenameModalEl).hide();
+        document.getElementById('folderRenameForm').submit();
+    });
+
+    document.getElementById('folderDeleteModalConfirm').addEventListener('click', () => {
+        document.getElementById('folderDeleteId').value = pendingDeleteId;
+        bootstrap.Modal.getOrCreateInstance(folderDeleteModalEl).hide();
+        document.getElementById('folderDeleteForm').submit();
+    });
+
+    function toggleExplorerFolder(node) {
+        const childZone = node?.querySelector(':scope > .ks-explorer-dropzone');
+        if (!childZone) return;
+        const toggle = node.querySelector(':scope > .ks-explorer-row .ks-folder-toggle');
+        const collapsed = childZone.classList.toggle('d-none');
+        toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        toggle?.querySelector('i')?.classList.toggle('bi-caret-right-fill', collapsed);
+        toggle?.querySelector('i')?.classList.toggle('bi-caret-down-fill', !collapsed);
+    }
+
+    document.addEventListener('click', (e) => {
+        const toggle = e.target.closest('.ks-folder-toggle');
+        if (toggle) {
+            toggleExplorerFolder(toggle.closest('.ks-explorer-folder'));
+            return;
+        }
+
+        // Clic sur la ligne du dossier (hors boutons et poignée) → toggle
+        if (!e.target.closest('button') && !e.target.closest('.ks-drag-handle')) {
+            const row = e.target.closest('.ks-explorer-folder > .ks-explorer-row');
+            if (row) {
+                toggleExplorerFolder(row.closest('.ks-explorer-folder'));
+                return;
+            }
+        }
+
+        const createChild = e.target.closest('.ks-folder-create-child');
+        if (createChild) {
+            pendingCreateParentId = createChild.dataset.id || '';
+            document.getElementById('folderCreateModalTitle').textContent = 'Créer un sous-dossier';
+            document.getElementById('folderCreateModalHint').textContent = 'Dans ' + (createChild.dataset.name || 'ce dossier');
+            folderCreateInput.value = '';
+            bootstrap.Modal.getOrCreateInstance(folderCreateModalEl).show();
+            return;
+        }
+
+        const rename = e.target.closest('.ks-folder-rename');
+        if (rename) {
+            pendingRenameId = rename.dataset.id || '';
+            folderRenameInput.value = rename.dataset.name || '';
+            bootstrap.Modal.getOrCreateInstance(folderRenameModalEl).show();
+            return;
+        }
+
+        const del = e.target.closest('.ks-folder-delete');
+        if (del) {
+            pendingDeleteId = del.dataset.id || '';
+            document.getElementById('folderDeleteModalTitle').textContent = del.dataset.name || '';
+            bootstrap.Modal.getOrCreateInstance(folderDeleteModalEl).show();
+            return;
+        }
+
+        const createRoot = e.target.closest('#btnFolderCreateRoot');
+        if (createRoot) {
+            pendingCreateParentId = '';
+            document.getElementById('folderCreateModalTitle').textContent = 'Créer un dossier';
+            document.getElementById('folderCreateModalHint').textContent = 'À la racine de la liste';
+            folderCreateInput.value = '';
+            bootstrap.Modal.getOrCreateInstance(folderCreateModalEl).show();
+        }
+    });
 })();
 </script>
 <?php endif; ?>
@@ -888,7 +1601,6 @@ $badgeStyles = BadgeStyles::all();
     const LABELS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
     const KEY    = 'ks-badge-size';
 
-    const grid       = document.querySelector('.ks-badges-grid');
     const btnSmaller = document.getElementById('btnBadgeSmaller');
     const btnLarger  = document.getElementById('btnBadgeLarger');
     const label      = document.getElementById('badgeSizeLabel');
@@ -900,7 +1612,7 @@ $badgeStyles = BadgeStyles::all();
 
     function apply() {
         const size = SIZES[idx];
-        grid.style.setProperty('--ks-badge-width', size + 'px');
+        document.documentElement.style.setProperty('--ks-badge-width', size + 'px');
         label.textContent        = LABELS[idx];
         btnSmaller.disabled      = idx === 0;
         btnLarger.disabled       = idx === SIZES.length - 1;

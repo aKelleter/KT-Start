@@ -9,6 +9,7 @@ use App\Core\Flash;
 use App\Core\Response;
 use App\Core\View;
 use App\Repository\BookmarkRepository;
+use App\Repository\FolderRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
 use App\Service\UrlCheckService;
@@ -48,13 +49,29 @@ final class BookmarkController
                     ? $_GET['view'] : 'badges';
 
         $bookmarkRepo = new BookmarkRepository();
+        $folderRepo   = new FolderRepository();
         $total        = $bookmarkRepo->countPublic($listId, $tag ?: null, $search ?: null);
         [$page, $totalPages, $offset] = $this->paginate($total);
+
+        $folders = [];
+        $foldersByParent = [];
+        $bookmarksByFolder = [];
+        if ($listId !== null) {
+            $folders = $folderRepo->findAllByListId($listId);
+            $foldersByParent = $folderRepo->groupByParent($folders);
+            foreach ($bookmarkRepo->findPublicByList($listId) as $bookmark) {
+                $folderKey = $bookmark['folder_id'] === null ? 0 : (int) $bookmark['folder_id'];
+                $bookmarksByFolder[$folderKey][] = $bookmark;
+            }
+        }
 
         View::render('bookmarks/index', [
             'lists'      => $listRepo->findAll(),
             'bookmarks'  => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'    => [],
+            'folders'    => $folders,
+            'foldersByParent' => $foldersByParent,
+            'bookmarksByFolder' => $bookmarksByFolder,
             'listId'     => $listId,
             'listRaw'    => $listRaw,
             'showAll'    => self::showAll(),
@@ -93,17 +110,39 @@ final class BookmarkController
         $tag    = $_GET['tag'] ?? '';
         $sort   = $_GET['sort'] ?? 'position';
         $search = trim($_GET['q'] ?? '');
-        $view   = in_array($_GET['view'] ?? '', ['badges', 'table', 'list'], true)
+        $view   = in_array($_GET['view'] ?? '', ['badges', 'table', 'list', 'explorer'], true)
                     ? $_GET['view'] : 'badges';
 
+        if ($view === 'explorer') {
+            $tag = '';
+            $search = '';
+            $sort = 'position';
+        }
+
         $bookmarkRepo = new BookmarkRepository();
+        $folderRepo   = new FolderRepository();
         $total        = $bookmarkRepo->countFiltered($userId, $listId, $tag ?: null, $search ?: null);
         [$page, $totalPages, $offset] = $this->paginate($total);
+
+        $folders = [];
+        $foldersByParent = [];
+        $bookmarksByFolder = [];
+        if ($listId !== null) {
+            $folders = $folderRepo->findAllByUserInList($userId, $listId);
+            $foldersByParent = $folderRepo->groupByParent($folders);
+            foreach ($bookmarkRepo->findByUserAndListWithFolder($userId, $listId) as $bookmark) {
+                $folderKey = $bookmark['folder_id'] === null ? 0 : (int) $bookmark['folder_id'];
+                $bookmarksByFolder[$folderKey][] = $bookmark;
+            }
+        }
 
         View::render('bookmarks/index', [
             'lists'      => $listRepo->findAll(),
             'bookmarks'  => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'    => $bookmarkRepo->getAllTags($userId),
+            'folders'    => $folders,
+            'foldersByParent' => $foldersByParent,
+            'bookmarksByFolder' => $bookmarksByFolder,
             'listId'     => $listId,
             'listRaw'    => $listRaw,
             'showAll'    => self::showAll(),
@@ -135,6 +174,7 @@ final class BookmarkController
         $listId = $this->resolveListId();
 
         $repo = new BookmarkRepository();
+        $folderId = $this->resolveFolderId($listId, (int) Auth::id());
         $repo->create([
             'url'         => $url,
             'host'        => trim($_POST['host'] ?? (string) parse_url($url, PHP_URL_HOST)),
@@ -145,6 +185,7 @@ final class BookmarkController
             'tags'        => $this->normalizeTags($_POST['tags'] ?? ''),
             'visibility'  => ($_POST['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
             'list_id'     => $listId,
+            'folder_id'   => $folderId,
             'user_id'     => (int) Auth::id(),
             'position'    => 0,
             'created_at'  => date('Y-m-d H:i:s'),
@@ -171,6 +212,7 @@ final class BookmarkController
         }
 
         $listId = $this->resolveListId();
+        $folderId = $this->resolveFolderId($listId, (int) Auth::id());
         $url    = trim($_POST['url'] ?? $bm['url']);
 
         $repo->update($id, [
@@ -183,6 +225,7 @@ final class BookmarkController
             'tags'        => $this->normalizeTags($_POST['tags'] ?? ''),
             'visibility'  => ($_POST['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
             'list_id'     => $listId,
+            'folder_id'   => $folderId,
         ]);
 
         Flash::set('success', 'Favori mis à jour.');
@@ -396,6 +439,134 @@ final class BookmarkController
         echo json_encode(UrlMetaService::fetch($url));
     }
 
+    public function folderStore(): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=bookmarks');
+        }
+
+        $userId = (int) Auth::id();
+        $listId = (int) ($_POST['list_id'] ?? 0);
+        $name   = trim($_POST['name'] ?? '');
+        $parentId = isset($_POST['parent_id']) && $_POST['parent_id'] !== '' ? (int) $_POST['parent_id'] : null;
+
+        if ($listId <= 0 || $name === '') {
+            Flash::set('warning', 'Liste et nom de dossier requis.');
+            Response::redirect($this->buildRedirectUrl());
+        }
+
+        $folders = new FolderRepository();
+        if ($parentId !== null && !$folders->existsForUserInList($parentId, $userId, $listId)) {
+            Flash::set('warning', 'Dossier parent invalide.');
+            Response::redirect($this->buildRedirectUrl());
+        }
+
+        $folders->create($userId, $listId, $parentId, $name);
+
+        Flash::set('success', 'Dossier créé.');
+        Response::redirect($this->buildRedirectUrl());
+    }
+
+    public function folderRename(): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=bookmarks');
+        }
+
+        $id   = (int) ($_POST['id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+
+        if ($id <= 0 || $name === '') {
+            Flash::set('warning', 'Dossier invalide.');
+            Response::redirect($this->buildRedirectUrl());
+        }
+
+        $ok = (new FolderRepository())->rename($id, (int) Auth::id(), $name);
+
+        Flash::set($ok ? 'success' : 'warning', $ok ? 'Dossier renommé.' : 'Dossier introuvable.');
+        Response::redirect($this->buildRedirectUrl());
+    }
+
+    public function folderDelete(): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=bookmarks');
+        }
+
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            Flash::set('warning', 'Dossier invalide.');
+            Response::redirect($this->buildRedirectUrl());
+        }
+
+        $ok = (new FolderRepository())->deleteAndLiftChildren($id, (int) Auth::id());
+
+        Flash::set($ok ? 'success' : 'warning', $ok ? 'Dossier supprimé.' : 'Dossier introuvable.');
+        Response::redirect($this->buildRedirectUrl());
+    }
+
+    public function explorerReorder(): void
+    {
+        header('Content-Type: application/json');
+
+        $body = (array) json_decode(file_get_contents('php://input'), true);
+
+        if (!Csrf::validate($body['_csrf'] ?? null)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return;
+        }
+
+        $userId   = (int) Auth::id();
+        $listId   = (int) ($body['list_id'] ?? 0);
+        $parentId = isset($body['parent_id']) && $body['parent_id'] !== null && $body['parent_id'] !== ''
+            ? (int) $body['parent_id'] : null;
+        $items = $body['items'] ?? [];
+
+        if ($listId <= 0 || !is_array($items)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Payload invalide']);
+            return;
+        }
+
+        $folderRepo = new FolderRepository();
+        if ($parentId !== null && !$folderRepo->existsForUserInList($parentId, $userId, $listId)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Dossier parent invalide']);
+            return;
+        }
+
+        $bookmarkRepo = new BookmarkRepository();
+
+        foreach ($items as $pos => $item) {
+            $type = (string) ($item['type'] ?? '');
+            $id   = (int) ($item['id'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+
+            if ($type === 'folder') {
+                if ($parentId !== null && $parentId === $id) {
+                    continue;
+                }
+                if ($folderRepo->wouldCreateCycle($id, $parentId, $userId, $listId)) {
+                    continue;
+                }
+                $folderRepo->setParentAndPosition($id, $userId, $listId, $parentId, (int) $pos);
+                continue;
+            }
+
+            if ($type === 'bookmark') {
+                $bookmarkRepo->setFolderAndPosition($id, $userId, $listId, $parentId, (int) $pos);
+            }
+        }
+
+        echo json_encode(['ok' => true]);
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private static function showAll(): bool
@@ -427,6 +598,25 @@ final class BookmarkController
 
         $listId = $_POST['list_id'] ?? '';
         return $listId !== '' ? (int) $listId : null;
+    }
+
+    private function resolveFolderId(?int $listId, int $userId): ?int
+    {
+        if ($listId === null) {
+            return null;
+        }
+
+        $folderId = $_POST['folder_id'] ?? '';
+        if ($folderId === '') {
+            return null;
+        }
+
+        $id = (int) $folderId;
+        if ($id <= 0) {
+            return null;
+        }
+
+        return (new FolderRepository())->existsForUserInList($id, $userId, $listId) ? $id : null;
     }
 
     private function normalizeTags(string $raw): string
@@ -506,6 +696,7 @@ final class BookmarkController
             'tags'        => $this->normalizeTags($_POST['tags'] ?? ''),
             'visibility'  => ($_POST['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
             'list_id'     => $listId,
+            'folder_id'   => null,
             'user_id'     => (int) Auth::id(),
             'position'    => 0,
             'created_at'  => date('Y-m-d H:i:s'),

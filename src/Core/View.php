@@ -26,6 +26,9 @@ final class View
 
     public static function asset(string $path): string
     {
-        return 'public/assets/' . ltrim($path, '/');
+        $relative = 'public/assets/' . ltrim($path, '/');
+        $absolute = BASE_PATH . '/' . $relative;
+        $v = file_exists($absolute) ? filemtime($absolute) : 0;
+        return $relative . '?v=' . $v;
     }
 }

@@ -44,10 +44,12 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Dossiers
 - Création de dossiers dans une liste pour regrouper les favoris
-- Hiérarchie parent/enfant (dossiers imbriqués)
+- Hiérarchie parent/enfant (dossiers imbriqués) sur N niveaux
 - **Vue Explorateur** — navigation par dossiers avec glisser-déposer pour réorganiser favoris et dossiers
+- **Vues Badges, Tableau, Liste** — hiérarchie respectée avec indentation visuelle (bordure gauche bleue)
+- Création de sous-dossiers directement depuis la vue Badges (bouton `📁+` dans le footer de chaque badge dossier)
 - Suppression d'un dossier non destructive : les sous-dossiers et favoris sont remontés au niveau parent
-- Bouton "+Dossier" dans la barre d'outils (en vue Explorateur)
+- Bouton "+Dossier" dans la barre d'outils (toutes les vues)
 
 ### Tags
 - Tags multiples séparés par virgule sur chaque favori
@@ -73,10 +75,11 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Vue filtrée complète accessible après connexion
 
 ### Administration
-L'interface d'administration est organisée en 8 sous-pages indépendantes accessibles depuis un dashboard central.
+L'interface d'administration est organisée en 9 sous-pages indépendantes accessibles depuis un dashboard central.
 
 - **Utilisateurs** : création, édition, suppression — confirmation du mot de passe dans la modale, protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
+- **Dossiers** : gestion centralisée par liste — arbre hiérarchique avec **drag & drop** (SortableJS) pour réorganiser et nicher les dossiers, création de sous-dossiers, renommage, suppression, badge email du propriétaire, sauvegarde automatique (debounce 600ms), protection anti-cycle
 - **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens avec case à cocher d'activation (priorité DB → `.env` → vide) + **code bookmarklet** généré avec l'URL de l'instance (à glisser dans la barre du navigateur)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
 - **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
@@ -104,7 +107,7 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 
 - Vérifie chaque URL une par une via cURL (HEAD, fallback GET si 405)
 - Statuts : **OK** (2xx), **Redirigé** (301), **Inaccessible** (4xx/5xx), **Timeout** (erreur réseau)
-- Indicateurs visuels colorés sur les 3 vues (badges, tableau, liste) — point en bas à droite du badge coloré
+- Indicateurs visuels colorés sur les 4 vues (badges, tableau, liste, explorateur) — point en bas à droite du badge coloré
 - Page rapport groupée par statut avec barre de progression en temps réel
 - **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
 - Suppression en lot des liens morts (inaccessibles et timeouts)
@@ -273,9 +276,10 @@ KT-Start/
 ├── templates/
 │   ├── layout.php
 │   ├── admin/
-│   │   ├── index.php                   # Dashboard 8 cartes de navigation
+│   │   ├── index.php                   # Dashboard 9 cartes de navigation
 │   │   ├── users.php                   # Gestion utilisateurs
 │   │   ├── lists.php                   # Gestion listes
+│   │   ├── folders.php                 # Gestion dossiers — arbre hiérarchique + drag & drop
 │   │   ├── settings.php                # Paramètres applicatifs
 │   │   ├── tags.php                    # Gestion tags (tous utilisateurs)
 │   │   ├── stats.php                   # Statistiques globales
@@ -335,6 +339,7 @@ KT-Start/
 | `admin` | GET | Admin | Dashboard d'administration |
 | `admin_users` | GET | Admin | Page gestion utilisateurs |
 | `admin_lists` | GET | Admin | Page gestion listes |
+| `admin_folders` | GET | Admin | Page gestion dossiers (arbre hiérarchique par liste) |
 | `admin_settings` | GET | Admin | Page paramètres |
 | `admin_backup` | GET | Admin | Page sauvegarde |
 | `admin_maintenance` | GET | Admin | Page maintenance |
@@ -347,6 +352,10 @@ KT-Start/
 | `admin_list_rename` | POST | Admin | Renommer une liste |
 | `admin_list_set_default` | POST | Admin | Définir/retirer la liste par défaut |
 | `admin_list_delete` | POST | Admin | Supprimer une liste |
+| `admin_folder_store` | POST | Admin | Créer un dossier (admin) |
+| `admin_folder_rename` | POST | Admin | Renommer un dossier (admin) |
+| `admin_folder_delete` | POST | Admin | Supprimer un dossier (admin, remonte les enfants) |
+| `admin_folder_reorder` | POST | Admin | Réorganiser/nicher les dossiers (JSON, debounce) |
 | `admin_setting_update` | POST | Admin | Mettre à jour les paramètres (DB) |
 | `admin_run_migration` | POST | Admin | Lancer la migration de BDD |
 | `admin_tag_rename` | POST | Admin | Renommer un tag (tous favoris) |

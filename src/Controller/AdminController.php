@@ -9,6 +9,7 @@ use App\Core\Flash;
 use App\Core\Response;
 use App\Core\View;
 use App\Repository\BookmarkRepository;
+use App\Repository\FolderRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
 use App\Repository\StatsRepository;
@@ -34,6 +35,7 @@ final class AdminController
             'userCount'     => count((new UserRepository())->findAll()),
             'listCount'     => count((new ListRepository())->findAll()),
             'tagCount'      => count($tags),
+            'folderCount'   => (new FolderRepository())->countAll(),
             'deadLinkCount' => $bmRepo->countDeadLinksAll(),
             'flash'         => Flash::get(),
         ]);
@@ -550,5 +552,131 @@ final class AdminController
         $repo->delete($id);
         Flash::set('success', 'Liste supprimée.');
         Response::redirect('?action=admin_lists');
+    }
+
+    // ── Dossiers ─────────────────────────────────────────────────────────────
+
+    public function foldersPage(): void
+    {
+        $this->requireAdmin();
+
+        $lists      = (new ListRepository())->findAll();
+        $listId     = isset($_GET['list_id']) && $_GET['list_id'] !== '' ? (int) $_GET['list_id'] : null;
+        $folders    = [];
+        $foldersByParent = [];
+
+        if ($listId !== null) {
+            $folderRepo  = new FolderRepository();
+            $folders     = $folderRepo->findAllByListIdWithUser($listId);
+            $foldersByParent = $folderRepo->groupByParent($folders);
+        }
+
+        View::render('admin/folders', [
+            'lists'          => $lists,
+            'listId'         => $listId,
+            'folders'        => $folders,
+            'foldersByParent' => $foldersByParent,
+            'csrf'           => Csrf::token(),
+            'flash'          => Flash::get(),
+        ]);
+    }
+
+    public function adminFolderStore(): void
+    {
+        $this->requireAdmin();
+        $listId = (int) ($_POST['list_id'] ?? 0);
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        $parentId = ($_POST['parent_id'] ?? '') !== '' ? (int) $_POST['parent_id'] : null;
+        $name     = trim($_POST['name'] ?? '');
+
+        if ($listId <= 0 || $name === '') {
+            Flash::set('danger', 'Données invalides.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        (new FolderRepository())->create((int) Auth::id(), $listId, $parentId, $name);
+        Flash::set('success', 'Dossier créé.');
+        Response::redirect('?action=admin_folders&list_id=' . $listId);
+    }
+
+    public function adminFolderRename(): void
+    {
+        $this->requireAdmin();
+        $listId = (int) ($_POST['list_id'] ?? 0);
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        $id   = (int) ($_POST['id'] ?? 0);
+        $name = trim($_POST['name'] ?? '');
+
+        if ($id <= 0 || $name === '') {
+            Flash::set('danger', 'Données invalides.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        (new FolderRepository())->renameAdmin($id, $name);
+        Flash::set('success', 'Dossier renommé.');
+        Response::redirect('?action=admin_folders&list_id=' . $listId);
+    }
+
+    public function adminFolderDelete(): void
+    {
+        $this->requireAdmin();
+        $listId = (int) ($_POST['list_id'] ?? 0);
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        $id = (int) ($_POST['id'] ?? 0);
+        if ($id <= 0) {
+            Flash::set('danger', 'Données invalides.');
+            Response::redirect('?action=admin_folders&list_id=' . $listId);
+        }
+
+        (new FolderRepository())->deleteAndLiftChildrenAdmin($id);
+        Flash::set('success', 'Dossier supprimé.');
+        Response::redirect('?action=admin_folders&list_id=' . $listId);
+    }
+
+    public function adminFolderReorder(): void
+    {
+        $this->requireAdmin();
+        header('Content-Type: application/json');
+
+        $body = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($body) || !isset($body['folders'], $body['list_id'])) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid payload']);
+            return;
+        }
+
+        $listId = (int) $body['list_id'];
+        $repo   = new FolderRepository();
+
+        foreach ($body['folders'] as $item) {
+            $id       = (int) ($item['id'] ?? 0);
+            $parentId = isset($item['parent_id']) && $item['parent_id'] !== null ? (int) $item['parent_id'] : null;
+            $pos      = (int) ($item['pos'] ?? 0);
+            if ($id <= 0) {
+                continue;
+            }
+            // Refuser les cycles (un dossier ne peut pas être son propre ancêtre)
+            if ($parentId !== null && $repo->wouldCreateCycleAdmin($id, $parentId)) {
+                continue;
+            }
+            $repo->setParentAndPositionAdmin($id, $listId, $parentId, $pos);
+        }
+
+        echo json_encode(['ok' => true]);
     }
 }

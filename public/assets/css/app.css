@@ -425,6 +425,11 @@ body.app-body {
     color: var(--app-muted);
     padding: .6rem 1rem;
 }
+
+/* Lignes de favoris dans un sous-dossier : teinte bleue très légère */
+.ks-table tr[data-depth] {
+    background: rgba(2, 136, 209, .03);
+}
 .ks-badge-private {
     background-color: #f1f3f5;
     color: #6c757d;
@@ -640,6 +645,13 @@ body.app-body {
 }
 
 /* ── Badge dossier (vue badges) ──────────────────────────────────────────── */
+
+/* Même comportement flex que .ks-badge dans la grille */
+.ks-folder-group {
+    width: var(--ks-badge-width, 160px);
+    flex-shrink: 0;
+}
+
 .ks-folder-thumb {
     background: linear-gradient(135deg, #0288D1 0%, #01579B 100%);
     flex-direction: column;
@@ -664,8 +676,11 @@ body.app-body {
     transform: rotate(-90deg);
 }
 /* Nom du dossier dans le thumb : 1 ligne max (le footer affiche le nom complet) */
+/* Caché quand la taille du badge est insuffisante (< L = 160px) pour éviter le rognage */
 .ks-folder-thumb span:not(.ks-folder-count) {
     -webkit-line-clamp: 1 !important;
+    overflow: hidden;
+    max-height: clamp(0px, calc((var(--ks-badge-width, 160px) - 145px) * 9999), 1.5rem);
 }
 .ks-folder-count {
     background: rgba(255,255,255,.22);
@@ -688,6 +703,28 @@ body.app-body {
     position: relative;
     z-index: 2;
 }
+/* Conteneur indenté pour les sous-dossiers (vue badges) */
+.ks-folder-nested-content {
+    padding-left: 1.25rem;
+    border-left: 2px solid rgba(2, 136, 209, .28);
+    margin-left: .25rem;
+    margin-bottom: .25rem;
+    border-radius: 0 0 0 4px;
+}
+@media (max-width: 575.98px) {
+    .ks-folder-nested-content {
+        padding-left: .625rem;
+        margin-left: .125rem;
+    }
+}
+
+/* Ligne de badges sous-dossiers à l'intérieur d'un dossier parent (vue badges) */
+.ks-sub-folders-row {
+    padding: .5rem .75rem;
+    background: var(--bs-secondary-bg);
+    border-radius: 10px;
+}
+
 /* Zone de drop minimaliste quand un dossier est temporairement ouvert pour le drag */
 .ks-badges-grid.ks-drop-target-empty {
     min-height: 3rem;
@@ -951,7 +988,9 @@ body.app-body {
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 575px) {
-    .ks-badge     { width: calc(50% - .4rem); }
+    .ks-badge              { width: calc(50% - .4rem); }
+    .ks-folder-group       { width: calc(50% - .4rem); }
+    .ks-folder-group .ks-badge { width: 100%; }
     .ks-compact-title { max-width: 140px; }
     .ks-compact-host  { display: none; }
     .ks-tag-cloud-item { font-size: .9rem !important; padding: .2em .55em; }
@@ -959,7 +998,9 @@ body.app-body {
 }
 
 @media (min-width: 576px) and (max-width: 767px) {
-    .ks-badge { width: calc(33.33% - .5rem); }
+    .ks-badge              { width: calc(33.33% - .5rem); }
+    .ks-folder-group       { width: calc(33.33% - .5rem); }
+    .ks-folder-group .ks-badge { width: 100%; }
 }
 
 /* ── Admin nav cards ─────────────────────────────────────────────────────── */
@@ -979,6 +1020,55 @@ body.app-body {
     box-shadow: 0 4px 18px rgba(2,136,209,.12);
     transform: translateY(-2px);
     color: inherit;
+}
+
+/* ── Arbre de dossiers admin ─────────────────────────────────────────────── */
+.ks-af-list {
+    padding: 0;
+    margin: 0;
+}
+.ks-af-list.ks-af-root > .ks-af-node > .ks-af-row {
+    background: var(--bs-secondary-bg);
+    border-radius: 8px;
+}
+.ks-af-list:not(.ks-af-root) {
+    padding-left: 1.5rem;
+    border-left: 2px solid rgba(2,136,209,.2);
+    margin-left: 1.1rem;
+    margin-top: .15rem;
+    margin-bottom: .15rem;
+}
+.ks-af-node + .ks-af-node {
+    margin-top: .2rem;
+}
+.ks-af-row {
+    transition: background .15s;
+}
+.ks-af-row:hover {
+    background: var(--bs-tertiary-bg, rgba(0,0,0,.03));
+    border-radius: 8px;
+}
+.ks-af-handle {
+    cursor: grab;
+    opacity: .45;
+    font-size: .95rem;
+}
+.ks-af-handle:active {
+    cursor: grabbing;
+}
+/* Zone de dépôt visible lors du drag dans une liste vide */
+.ks-af-list:empty,
+.ks-af-list.sortable-drag-over {
+    min-height: 2rem;
+    border-radius: 6px;
+    border: 1.5px dashed rgba(2,136,209,.3);
+    margin-top: .25rem;
+}
+@media (max-width: 575px) {
+    .ks-af-list:not(.ks-af-root) {
+        padding-left: .75rem;
+        margin-left: .6rem;
+    }
 }
 
 /* ── Nuage de tags ───────────────────────────────────────────────────────── */

@@ -246,10 +246,20 @@ foreach ($folders ?? [] as $f) {
     $foldersById[(int) $f['id']] = $f;
 }
 
+// Compte les favoris d'un dossier et de tous ses descendants
+$countBmRecursive = function(int $fid) use (&$countBmRecursive, $bmByFolder, $foldersByParent): int {
+    $count = count($bmByFolder[$fid] ?? []);
+    foreach ($foldersByParent[$fid] ?? [] as $child) {
+        $count += $countBmRecursive((int) $child['id']);
+    }
+    return $count;
+};
+
 // Entête de dossier réutilisable dans les 3 vues
-$folderHeader = function(array $folder, bool $ro) use ($view): void { ?>
-<div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-3 rounded"
-     style="background:var(--bs-secondary-bg)">
+$folderHeader = function(array $folder, bool $ro, int $depth = 0) use ($view): void {
+    $indent = $depth > 0 ? ' style="padding-left:' . ($depth * 1.5) . 'rem;background:var(--bs-secondary-bg)"' : ' style="background:var(--bs-secondary-bg)"';
+    ?>
+<div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-3 rounded"<?= $indent ?>>
     <i class="bi bi-folder2-open text-warning"></i>
     <span class="fw-semibold"><?= \App\Core\View::e($folder['name']) ?></span>
     <?php if (!$ro): ?>
@@ -321,21 +331,31 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
 ?>
 
 <?php if (!empty($folders)): ?>
-    <div id="ksFolderList" class="ks-badges-grid mb-3" data-list-id="<?= (int) $listId ?>">
-    <?php foreach ($folders as $folder): ?>
-        <?php $fid = (int) $folder['id']; ?>
-        <?php $bmCount = count($bookmarksByFolder[$fid] ?? []); ?>
+<?php
+// Rendu récursif des badges dossiers et de leur contenu
+$renderFolderLevel = function(int $parentKey, bool $isRoot) use (&$renderFolderLevel, $foldersByParent, $bmByFolder, $countBmRecursive, $readOnly, $sort, $listId, $renderBadge): void {
+    $childFolders = $foldersByParent[$parentKey] ?? [];
+    if (empty($childFolders)) return;
+
+    // Ligne de badges dossiers
+    $gridId    = $isRoot ? ' id="ksFolderList"' : '';
+    $gridClass = $isRoot ? 'ks-badges-grid mb-3' : 'ks-badges-grid ks-sub-folders-row mb-2 mt-2';
+    echo '<div' . $gridId . ' class="' . $gridClass . '" data-list-id="' . (int) $listId . '">';
+    foreach ($childFolders as $folder):
+        $fid     = (int) $folder['id'];
+        $bmCount = $countBmRecursive($fid);
+        ?>
         <div class="ks-folder-group" data-folder-id="<?= $fid ?>">
             <div class="ks-badge ks-folder-badge" style="--ks-badge-color:#0288D1">
                 <div class="ks-badge-thumb ks-folder-thumb collapsed"
                      role="button"
-                     title="<?= View::e($folder['name']) ?>"
+                     title="<?= \App\Core\View::e($folder['name']) ?>"
                      data-bs-toggle="collapse"
                      data-bs-target="#folderBadges<?= $fid ?>"
                      aria-expanded="false"
                      aria-controls="folderBadges<?= $fid ?>">
                     <i class="bi bi-folder2 ks-folder-icon"></i>
-                    <span><?= View::e($folder['name']) ?></span>
+                    <span><?= \App\Core\View::e($folder['name']) ?></span>
                     <span class="ks-folder-count" data-folder-count="<?= $fid ?>"><?= $bmCount ?></span>
                     <i class="bi bi-chevron-down ks-folder-chevron"></i>
                 </div>
@@ -345,15 +365,19 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
                         <i class="bi bi-grip-vertical"></i>
                     </span>
                     <?php endif; ?>
-                    <span class="ks-badge-host"><?= View::e($folder['name']) ?></span>
+                    <span class="ks-badge-host"><?= \App\Core\View::e($folder['name']) ?></span>
                     <?php if (!$readOnly): ?>
                     <span class="d-flex gap-1 flex-shrink-0">
+                        <button type="button" class="ks-folder-create-child btn btn-link p-0 ks-badge-edit"
+                                data-id="<?= $fid ?>" data-name="<?= \App\Core\View::e($folder['name']) ?>" title="Nouveau sous-dossier">
+                            <i class="bi bi-folder-plus"></i>
+                        </button>
                         <button type="button" class="ks-folder-rename btn btn-link p-0 ks-badge-edit"
-                                data-id="<?= $fid ?>" data-name="<?= View::e($folder['name']) ?>" title="Renommer">
+                                data-id="<?= $fid ?>" data-name="<?= \App\Core\View::e($folder['name']) ?>" title="Renommer">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button type="button" class="ks-folder-delete btn btn-link p-0 ks-badge-edit"
-                                data-id="<?= $fid ?>" data-name="<?= View::e($folder['name']) ?>" title="Supprimer">
+                                data-id="<?= $fid ?>" data-name="<?= \App\Core\View::e($folder['name']) ?>" title="Supprimer">
                             <i class="bi bi-trash"></i>
                         </button>
                     </span>
@@ -361,24 +385,40 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
                 </div>
             </div>
         </div>
-    <?php endforeach; ?>
-    </div>
-    <?php foreach ($folders as $folder): ?>
-    <?php $fid = (int) $folder['id']; $isEmpty = empty($bmByFolder[$fid]); ?>
-    <div class="collapse" id="folderBadges<?= $fid ?>">
-        <div class="d-flex align-items-center gap-2 mb-2 mt-1 small text-muted px-1">
-            <i class="bi bi-folder2-open text-warning"></i>
-            <span class="fw-semibold"><?= View::e($folder['name']) ?></span>
+        <?php
+    endforeach;
+    echo '</div>';
+
+    // Sections collapse (sous-dossiers + favoris directs)
+    foreach ($childFolders as $folder):
+        $fid          = (int) $folder['id'];
+        $hasSubFolders = !empty($foldersByParent[$fid]);
+        ?>
+        <div class="collapse" id="folderBadges<?= $fid ?>">
+            <div class="d-flex align-items-center gap-2 mb-2 mt-1 small text-muted px-1">
+                <i class="bi bi-folder2-open text-warning"></i>
+                <span class="fw-semibold"><?= \App\Core\View::e($folder['name']) ?></span>
+            </div>
+            <?php if ($hasSubFolders): ?>
+            <div class="ks-folder-nested-content">
+                <?php $renderFolderLevel($fid, false); ?>
+            </div>
+            <?php else: ?>
+            <?php $renderFolderLevel($fid, false); ?>
+            <?php endif; ?>
+            <div class="ks-badges-grid mb-3<?= empty($bmByFolder[$fid]) ? ' ks-drop-target-empty' : '' ?>"
+                 data-folder-id="<?= $fid ?>"
+                 data-list-id="<?= (int) $listId ?>">
+                <?php foreach ($bmByFolder[$fid] ?? [] as $bm): ?><?php $renderBadge($bm); ?><?php endforeach; ?>
+            </div>
         </div>
-        <div class="ks-badges-grid mb-3<?= $isEmpty ? ' ks-drop-target-empty' : '' ?>"
-             data-folder-id="<?= $fid ?>"
-             data-list-id="<?= (int) $listId ?>">
-            <?php foreach ($bmByFolder[$fid] ?? [] as $bm): ?><?php $renderBadge($bm); ?><?php endforeach; ?>
-        </div>
-    </div>
-    <?php endforeach; ?>
+        <?php
+    endforeach;
+};
+$renderFolderLevel(0, true);
+?>
     <?php if (!empty($bmByFolder[0])): ?>
-    <?php if (count($bmByFolder) > 1): ?>
+    <?php if (!empty($foldersByParent[0])): ?>
     <div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-2 rounded"
          style="background:var(--bs-secondary-bg)">
         <i class="bi bi-inbox text-muted"></i>
@@ -403,10 +443,14 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
 <?php elseif ($view === 'table'): ?>
 
 <?php
-$renderTableRow = function(array $bm) use ($readOnly, $sort, $q): void {
-    $bg = \App\Config\BadgeStyles::gradient($bm['badge_style']); ?>
-    <tr data-id="<?= $bm['id'] ?>">
-        <td>
+$renderTableRow = function(array $bm, int $depth = 0) use ($readOnly, $sort, $q): void {
+    $bg      = \App\Config\BadgeStyles::gradient($bm['badge_style']);
+    $tdStyle = $depth > 0
+        ? ' style="padding-left:' . ($depth * 1.5 + .25) . 'rem;border-left:3px solid rgba(2,136,209,.22)"'
+        : '';
+    ?>
+    <tr data-id="<?= $bm['id'] ?>"<?= $depth > 0 ? ' data-depth="' . $depth . '"' : '' ?>>
+        <td<?= $tdStyle ?>>
             <div class="d-flex align-items-center gap-1">
                 <?php if (!$readOnly && $sort === 'position'): ?>
                 <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
@@ -477,9 +521,12 @@ $renderTableRow = function(array $bm) use ($readOnly, $sort, $q): void {
     </tr>
     <?php
 };
-$tableFolderRow = function(array $folder, bool $ro, int $cols) use ($view): void { ?>
+$tableFolderRow = function(array $folder, bool $ro, int $cols, int $depth = 0) use ($view): void {
+    $pad         = $depth > 0 ? 'padding-left:' . ($depth * 1.5 + 0.5) . 'rem' : 'padding-left:.5rem';
+    $borderLeft  = $depth > 0 ? 'border-left:3px solid rgba(2,136,209,.28);' : '';
+    ?>
     <tr class="ks-table-folder-row">
-        <td colspan="<?= $cols ?>" class="py-1 px-2" style="background:var(--bs-secondary-bg)">
+        <td colspan="<?= $cols ?>" class="py-1 px-2" style="background:var(--bs-secondary-bg);<?= $borderLeft ?><?= $pad ?>">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-folder2-open text-warning"></i>
                 <span class="fw-semibold"><?= \App\Core\View::e($folder['name']) ?></span>
@@ -519,13 +566,19 @@ $cols = $readOnly ? 5 : 6;
         <?php if (empty($bookmarks)): ?>
             <tr><td colspan="<?= $cols ?>" class="text-muted text-center py-3">Aucun favori.</td></tr>
         <?php elseif (!empty($bmByFolder)): ?>
-            <?php foreach ($folders as $folder): ?>
-                <?php $fid = (int) $folder['id']; if (empty($bmByFolder[$fid])) continue; ?>
-                <?php $tableFolderRow($folder, $readOnly, $cols); ?>
-                <?php foreach ($bmByFolder[$fid] as $bm): ?><?php $renderTableRow($bm); ?><?php endforeach; ?>
-            <?php endforeach; ?>
+            <?php
+            $renderTableFolderRows = function(int $parentKey, int $depth) use (&$renderTableFolderRows, $foldersByParent, $bmByFolder, $tableFolderRow, $renderTableRow, $readOnly, $cols): void {
+                foreach ($foldersByParent[$parentKey] ?? [] as $folder) {
+                    $fid = (int) $folder['id'];
+                    $tableFolderRow($folder, $readOnly, $cols, $depth);
+                    foreach ($bmByFolder[$fid] ?? [] as $bm) { $renderTableRow($bm, $depth); }
+                    $renderTableFolderRows($fid, $depth + 1);
+                }
+            };
+            $renderTableFolderRows(0, 0);
+            ?>
             <?php if (!empty($bmByFolder[0])): ?>
-                <?php if (count($bmByFolder) > 1): ?>
+                <?php if (!empty($foldersByParent[0])): ?>
                 <tr class="ks-table-folder-row">
                     <td colspan="<?= $cols ?>" class="py-1 px-2" style="background:var(--bs-secondary-bg)">
                         <i class="bi bi-inbox text-muted me-2"></i>
@@ -601,15 +654,28 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
 <?php if (empty($bookmarks)): ?>
     <p class="text-muted">Aucun favori.</p>
 <?php elseif (!empty($bmByFolder)): ?>
-    <?php foreach ($folders as $folder): ?>
-        <?php $fid = (int) $folder['id']; if (empty($bmByFolder[$fid])) continue; ?>
-        <?php $folderHeader($folder, $readOnly); ?>
-        <div class="ks-compact-list mb-2">
-            <?php foreach ($bmByFolder[$fid] as $bm): ?><?php $renderListItem($bm); ?><?php endforeach; ?>
-        </div>
-    <?php endforeach; ?>
+    <?php
+    $renderListFolderSections = function(int $parentKey, int $depth) use (&$renderListFolderSections, $foldersByParent, $bmByFolder, $folderHeader, $renderListItem, $readOnly): void {
+        foreach ($foldersByParent[$parentKey] ?? [] as $folder) {
+            $fid           = (int) $folder['id'];
+            $hasSubFolders = !empty($foldersByParent[$fid]);
+            $folderHeader($folder, $readOnly, 0); // le wrapper gère l'indentation
+            if (!empty($bmByFolder[$fid])) {
+                echo '<div class="ks-compact-list mb-2">';
+                foreach ($bmByFolder[$fid] as $bm) { $renderListItem($bm); }
+                echo '</div>';
+            }
+            if ($hasSubFolders) {
+                echo '<div class="ks-folder-nested-content">';
+                $renderListFolderSections($fid, $depth + 1);
+                echo '</div>';
+            }
+        }
+    };
+    $renderListFolderSections(0, 0);
+    ?>
     <?php if (!empty($bmByFolder[0])): ?>
-        <?php if (count($bmByFolder) > 1): ?>
+        <?php if (!empty($foldersByParent[0])): ?>
         <div class="ks-folder-section-header d-flex align-items-center gap-2 px-3 py-1 mb-1 mt-2 rounded"
              style="background:var(--bs-secondary-bg)">
             <i class="bi bi-inbox text-muted"></i>
@@ -1486,6 +1552,13 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
 
     folderCreateModalEl.addEventListener('shown.bs.modal', () => folderCreateInput?.focus());
     folderRenameModalEl.addEventListener('shown.bs.modal', () => folderRenameInput?.focus());
+
+    folderCreateInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('folderCreateModalConfirm').click();
+    });
+    folderRenameInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('folderRenameModalConfirm').click();
+    });
 
     document.getElementById('folderCreateModalConfirm').addEventListener('click', () => {
         const name = folderCreateInput.value.trim();

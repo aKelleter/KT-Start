@@ -84,6 +84,17 @@ use App\Core\View;
         </a>
     </div>
     <div class="col-sm-6 col-lg-4">
+        <a href="?action=admin_folders" class="ks-admin-nav-card">
+            <div class="ks-admin-icon mb-3" style="background:rgba(245,158,11,.10);color:#f59e0b">
+                <i class="bi bi-folder-fill"></i>
+            </div>
+            <p class="fw-semibold mb-1">Dossiers
+                <span class="badge text-bg-secondary fw-normal ms-1" style="font-size:.7rem"><?= $folderCount ?></span>
+            </p>
+            <p class="text-muted small mb-0">Créer, organiser et hiérarchiser les dossiers par liste.</p>
+        </a>
+    </div>
+    <div class="col-sm-6 col-lg-4">
         <a href="?action=admin_stats" class="ks-admin-nav-card">
             <div class="ks-admin-icon mb-3" style="background:rgba(99,102,241,.10);color:#6366f1">
                 <i class="bi bi-bar-chart-fill"></i>

@@ -19,7 +19,7 @@ src/
 │   ├── BadgeStyles.php     # 12 styles de badge avec gradient() — deepBlue, turquoise, etc.
 │   └── Config.php          # Accès à $_ENV
 ├── Controller/
-│   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
+│   ├── AdminController.php # index, usersPage, listsPage, foldersPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, adminFolderStore/Rename/Delete/Reorder, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
 │   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect(), folderStore(), folderRename(), folderDelete(), explorerReorder(), bookmarklet(), bookmarkletStore()
 ├── Core/
@@ -32,7 +32,7 @@ src/
 │   └── View.php            # render(), renderRaw() (sans layout — popup bookmarklet), e(), asset() → 'public/assets/...'
 ├── Repository/
 │   ├── BookmarkRepository.php  # findPublic(), findPublicByList(), findFiltered(), findByUserAndListWithFolder(), CRUD, reorder(), setFolderAndPosition(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
-│   ├── FolderRepository.php    # findAllByUserInList(), findAllByListId(), findById(), existsForUserInList(), create(), rename(), setParentAndPosition(), wouldCreateCycle(), deleteAndLiftChildren(), groupByParent()
+│   ├── FolderRepository.php    # findAllByUserInList(), findAllByListId(), findAllByListIdWithUser(), findById(), existsForUserInList(), create(), rename(), renameAdmin(), setParentAndPosition(), setParentAndPositionAdmin(), wouldCreateCycle(), wouldCreateCycleAdmin(), deleteAndLiftChildren(), deleteAndLiftChildrenAdmin(), countAll(), groupByParent()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   ├── StatsRepository.php     # overview(), perUser(), perList(), perLinkStatus(), topTags(), perMonth(), perBadgeStyle()
@@ -118,9 +118,10 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_explorer_reorder` (POST JSON, auth) → réorganise favoris et dossiers dans la vue Explorateur
 - `bookmarklet` (GET, public) → popup autonome d'ajout rapide, reçoit `url` et `title` en GET, auth gérée dans le controller (3 états : non connecté / formulaire / succès)
 - `bookmarklet_store` (POST, public) → enregistre le favori depuis la popup, affiche l'état succès avec bouton `window.close()`
-- `admin` (GET, admin) → dashboard avec 8 cartes de navigation
+- `admin` (GET, admin) → dashboard avec 9 cartes de navigation
 - `admin_users` (GET, admin) → gestion utilisateurs
 - `admin_lists` (GET, admin) → gestion listes
+- `admin_folders` (GET, admin) → gestion dossiers (arbre hiérarchique par liste, drag & drop)
 - `admin_settings` (GET, admin) → paramètres applicatifs
 - `admin_backup` (GET, admin) → sauvegarde (export/import)
 - `admin_maintenance` (GET, admin) → maintenance (migration + log)
@@ -129,6 +130,10 @@ Toutes les routes passent par `?action=xxx` :
 - `admin_user_store` / `admin_user_update` / `admin_user_delete` (POST, admin)
 - `admin_list_store` / `admin_list_rename` / `admin_list_delete` (POST, admin)
 - `admin_list_set_default` (POST, admin) → toggle liste par défaut
+- `admin_folder_store` (POST, admin) → crée un dossier (admin, any list)
+- `admin_folder_rename` (POST, admin) → renomme un dossier (admin)
+- `admin_folder_delete` (POST, admin) → supprime un dossier (admin, remonte les enfants)
+- `admin_folder_reorder` (POST JSON, admin) → réorganise/niche les dossiers, debounce 600ms, anti-cycle
 - `admin_setting_update` (POST, admin) → mise à jour table settings
 - `admin_run_migration` (POST, admin) → MigrationService, résultat en session flash
 - `admin_tag_rename` (POST, admin) → renomme un tag dans tous les favoris
@@ -166,9 +171,10 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/bookmarks/index.php` — 4 vues (badges/table/liste/explorer), modal add/edit `.ks-modal`, bouton poubelle `.ks-quick-delete` inline sur chaque favori, modal de confirmation suppression `#deleteConfirmModal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique ; vue Explorer avec navigation hiérarchique par dossiers (`.ks-folder-section-header`)
 - `templates/bookmarks/links.php` — page rapport des liens (sans layout propre, rendu dans layout) ; résumé 4 compteurs, barre de progression, sections par statut, vérification URL par URL (JS async/await), boutons Continuer/Stop/Tout revérifier, sélection en lot pour suppression/mise à jour
 - `templates/bookmarks/bookmarklet.php` — page popup autonome (sans layout), 3 états : `$notLogged` / formulaire / `$saved` ; champs URL+titre pré-remplis, liste, tags, couleur badge, visibilité
-- `templates/admin/index.php` — dashboard 8 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
+- `templates/admin/index.php` — dashboard 9 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts, "Dossiers" avec compteur)
 - `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete + confirmation mot de passe)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
+- `templates/admin/folders.php` — gestion dossiers : sélecteur de liste, arbre hiérarchique récursif (`$renderTree`), drag & drop SortableJS (réorganisation + nidification), modals créer/renommer/supprimer, debounce 600ms, badge email propriétaire, anti-cycle (`wouldCreateCycleAdmin`)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy + case à cocher `check_proxy_enabled`) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
 - `templates/admin/backup.php` — export v1/v2 + import + restauration complète
 - `templates/admin/maintenance.php` — migration runner + journal
@@ -231,10 +237,16 @@ Fichier : `public/assets/css/app.css`
 - **StatsRepository** : utilise `Database::connection()` (pas `getInstance()` qui n'existe pas) ; tous les chiffres calculés côté SQL sauf `topTags()` qui agrège les chaînes virgule-séparées en PHP
 - **Mode sombre — fond** : `background-attachment: fixed` conservé en mode clair seulement ; en mode sombre, fond couleur unie sans gradient (les `radial-gradient` fixes créent des bandes répétées visibles au scroll sur fond sombre)
 
-- **Dossiers** : table `folders` avec hiérarchie parent/enfant (`parent_id` nullable) ; `FolderRepository::wouldCreateCycle()` prévient les boucles ; `deleteAndLiftChildren()` remonte les sous-dossiers et favoris d'un niveau (pas de suppression en cascade) ; Vue Explorer (`view=explorer`) — 4ème vue avec navigation par dossiers, `foldersByParent` + `bookmarksByFolder` passés au template ; `bookmark_explorer_reorder` reçoit un tableau JSON `{folders:[…], bookmarks:[…]}` et met à jour les positions + folder_id via `setParentAndPosition()` et `setFolderAndPosition()`
+- **Dossiers** : table `folders` avec hiérarchie parent/enfant (`parent_id` nullable) ; `FolderRepository::wouldCreateCycle()` prévient les boucles (user) / `wouldCreateCycleAdmin()` sans contrainte user (admin) ; `deleteAndLiftChildren()` remonte les sous-dossiers et favoris d'un niveau (pas de suppression en cascade) ; Vue Explorer (`view=explorer`) — 4ème vue avec navigation par dossiers, `foldersByParent` + `bookmarksByFolder` passés au template ; `bookmark_explorer_reorder` reçoit un tableau JSON `{folders:[…], bookmarks:[…]}` et met à jour les positions + folder_id via `setParentAndPosition()` et `setFolderAndPosition()`
+- **Hiérarchie vues badges/tableau/liste** : rendu récursif via `$renderFolderLevel` / `$renderTableFolderRows` / `$renderListFolderSections` ; indentation par `.ks-folder-nested-content` (bordure gauche bleue + padding) en badges/liste ; `border-left` + `padding-left` inline en tableau ; compteur récursif `$countBmRecursive` sur les badges dossiers ; titre du dossier masqué sous taille L via `clamp(0px, (width-145)*9999, 1.5rem)` ; bouton `📁+` dans le footer badge pour créer un sous-dossier
+- **Responsive badges dossiers** : `.ks-folder-group` suit les mêmes breakpoints que `.ks-badge` (`calc(50% - .4rem)` à < 576px, `calc(33.33% - .5rem)` à 576–767px) — le `.ks-badge` interne passe à `width:100%`
+- **Cache-busting assets** : `View::asset()` ajoute `?v={filemtime}` — le navigateur invalide le cache automatiquement à chaque modification
+- **Page admin dossiers** (`admin_folders`) : SortableJS chargé dans le template (pas dans le layout) ; debounce 600ms sur `saveOrder` pour fusionner les drops rapides en une seule requête ; `serializeTree()` lit `data-parent-id` sur chaque `<ul>` pour reconstruire la hiérarchie complète
 ## Ce qui reste à faire (non implémenté)
 - ~~Page de statistiques (répartition par liste, tag, visibilité)~~ ✓ implémenté
 - ~~Vérification automatique des favoris inaccessibles (lien mort)~~ ✓ implémenté
 - ~~Bookmarklet (ajout rapide depuis le navigateur)~~ ✓ implémenté
+- ~~Sous-dossiers dans les vues badges/tableau/liste~~ ✓ implémenté
+- ~~Gestion des dossiers dans l'administration~~ ✓ implémenté
 - Rôle `editor` (multi-utilisateurs sans accès admin)
 - Import de favoris au format HTML (Netscape bookmarks)

@@ -113,6 +113,26 @@ final class FolderRepository
         return false;
     }
 
+    /** Vérifie un cycle sans contrainte user_id (usage admin) */
+    public function wouldCreateCycleAdmin(int $folderId, int $parentId): bool
+    {
+        if ($parentId === $folderId) {
+            return true;
+        }
+        $current = $this->findById($parentId);
+        while ($current) {
+            $nextParent = $current['parent_id'] !== null ? (int) $current['parent_id'] : null;
+            if ($nextParent === null) {
+                return false;
+            }
+            if ($nextParent === $folderId) {
+                return true;
+            }
+            $current = $this->findById($nextParent);
+        }
+        return false;
+    }
+
     public function deleteAndLiftChildren(int $id, int $userId): bool
     {
         $folder = $this->findById($id);
@@ -150,6 +170,66 @@ final class FolderRepository
 
             $del = $pdo->prepare('DELETE FROM folders WHERE id = :id AND user_id = :user_id');
             $del->execute(['id' => $id, 'user_id' => $userId]);
+
+            $pdo->commit();
+            return $del->rowCount() > 0;
+        } catch (\Throwable) {
+            $pdo->rollBack();
+            return false;
+        }
+    }
+
+    public function findAllByListIdWithUser(int $listId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT f.*, u.email as user_email FROM folders f JOIN users u ON f.user_id = u.id WHERE f.list_id = :list_id ORDER BY f.position ASC, LOWER(f.name) ASC'
+        );
+        $stmt->execute(['list_id' => $listId]);
+        return $stmt->fetchAll();
+    }
+
+    public function countAll(): int
+    {
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM folders')->fetchColumn();
+    }
+
+    public function renameAdmin(int $id, string $name): bool
+    {
+        $stmt = Database::connection()->prepare('UPDATE folders SET name = :name WHERE id = :id');
+        $stmt->execute(['name' => $name, 'id' => $id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function setParentAndPositionAdmin(int $id, int $listId, ?int $parentId, int $position): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE folders SET parent_id = :parent_id, position = :position WHERE id = :id AND list_id = :list_id'
+        );
+        $stmt->execute(['parent_id' => $parentId, 'position' => $position, 'id' => $id, 'list_id' => $listId]);
+        return $stmt->rowCount() > 0;
+    }
+
+    public function deleteAndLiftChildrenAdmin(int $id): bool
+    {
+        $folder = $this->findById($id);
+        if (!$folder) {
+            return false;
+        }
+
+        $pdo = Database::connection();
+        $pdo->beginTransaction();
+
+        try {
+            $parentId = $folder['parent_id'] !== null ? (int) $folder['parent_id'] : null;
+
+            $pdo->prepare('UPDATE folders SET parent_id = :parent_id WHERE parent_id = :id AND list_id = :list_id')
+                ->execute(['parent_id' => $parentId, 'id' => $id, 'list_id' => (int) $folder['list_id']]);
+
+            $pdo->prepare('UPDATE bookmarks SET folder_id = :parent_id WHERE folder_id = :id AND list_id = :list_id')
+                ->execute(['parent_id' => $parentId, 'id' => $id, 'list_id' => (int) $folder['list_id']]);
+
+            $del = $pdo->prepare('DELETE FROM folders WHERE id = :id');
+            $del->execute(['id' => $id]);
 
             $pdo->commit();
             return $del->rowCount() > 0;

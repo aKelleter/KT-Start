@@ -60,6 +60,13 @@ if (!file_exists($_basePath . '/' . $_dbRelPath)) {
     );
 }
 unset($_basePath, $_dbRelPath);
+
+// ── Auto-migration (idempotent) ───────────────────────────────────────────────
+// Ajoute automatiquement les tables/colonnes manquantes au démarrage.
+// Sans effet sur les données existantes.
+require_once BASE_PATH . '/vendor/autoload.php';
+use App\Service\MigrationService;
+MigrationService::run();
 // ── End pre-flight ────────────────────────────────────────────────────────────
 
 use App\Controller\AdminController;

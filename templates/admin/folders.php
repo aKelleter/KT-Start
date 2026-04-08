@@ -128,7 +128,8 @@ use App\Core\View;
 
 <?php endif; ?>
 
-<!-- ── Formulaires cachés ─────────────────────────────────────────────────── -->
+<!-- ── Formulaires cachés (uniquement si une liste est sélectionnée) ─────── -->
+<?php if ($listId !== null): ?>
 <form method="post" action="?action=admin_folder_store" id="afCreateForm" class="d-none">
     <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
     <input type="hidden" name="list_id" value="<?= (int) $listId ?>">
@@ -148,6 +149,7 @@ use App\Core\View;
     <input type="hidden" name="list_id" value="<?= (int) $listId ?>">
     <input type="hidden" name="id" id="afDeleteId" value="">
 </form>
+<?php endif; ?>
 
 <!-- ── Modals ─────────────────────────────────────────────────────────────── -->
 <div class="modal fade ks-modal" id="afCreateModal" tabindex="-1">
@@ -353,23 +355,6 @@ use App\Core\View;
     }
 
     document.querySelectorAll('.ks-af-list').forEach(initSortable);
-
-    // Initialiser SortableJS sur les nouvelles listes enfants après un drop
-    const treeRoot = document.querySelector('.ks-af-root');
-    if (treeRoot) {
-        new MutationObserver(mutations => {
-            mutations.forEach(m => {
-                m.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) {
-                        node.querySelectorAll('.ks-af-list:not([data-sortable])').forEach(ul => {
-                            ul.dataset.sortable = '1';
-                            initSortable(ul);
-                        });
-                    }
-                });
-            });
-        }).observe(treeRoot, { subtree: true, childList: true });
-    }
 })();
 </script>
 <?php endif; ?>

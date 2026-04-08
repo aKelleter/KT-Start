@@ -24,7 +24,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - **Détection de doublons d'URL** en temps réel lors de l'ajout ou de la modification
 - Modification et suppression, toutes les actions protégées par CSRF
 - **Suppression rapide** directement sur chaque favori (icône poubelle sur les 3 vues) avec confirmation en modal Bootstrap
-- Trois vues disponibles : **Badges**, **Tableau**, **Liste compacte**
+- Quatre vues disponibles : **Badges**, **Tableau**, **Liste compacte**, **Explorateur**
 - Contrôle de la taille d'affichage des badges : 6 paliers XS → XXL, mémorisés dans `localStorage`
 - **Tri par glisser-déposer** (SortableJS) en mode vue Badges, tri par position
 - Tri par colonne : position, titre, hôte, **texte de badge**, date (croissant/décroissant)
@@ -41,6 +41,13 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Filtrage par liste via un **dropdown avec recherche live** dans la barre d'outils
 - Sélection de liste dans les modaux ajout/édition via un dropdown searchable
 - "— Toutes" accessible explicitement, préservé lors de la pagination et des recherches
+
+### Dossiers
+- Création de dossiers dans une liste pour regrouper les favoris
+- Hiérarchie parent/enfant (dossiers imbriqués)
+- **Vue Explorateur** — navigation par dossiers avec glisser-déposer pour réorganiser favoris et dossiers
+- Suppression d'un dossier non destructive : les sous-dossiers et favoris sont remontés au niveau parent
+- Bouton "+Dossier" dans la barre d'outils (en vue Explorateur)
 
 ### Tags
 - Tags multiples séparés par virgule sur chaque favori
@@ -70,7 +77,7 @@ L'interface d'administration est organisée en 8 sous-pages indépendantes acces
 
 - **Utilisateurs** : création, édition, suppression — confirmation du mot de passe dans la modale, protection contre l'auto-suppression et la suppression du dernier admin
 - **Listes** : création, renommage, suppression, **liste par défaut** (⭐), recherche live + scroll interne
-- **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens (priorité DB → `.env` → vide) + **code bookmarklet** généré avec l'URL de l'instance (à glisser dans la barre du navigateur)
+- **Paramètres** : nombre de favoris par page (priorité DB → `.env` → 24) + proxy HTTP pour la vérification des liens avec case à cocher d'activation (priorité DB → `.env` → vide) + **code bookmarklet** généré avec l'URL de l'instance (à glisser dans la barre du navigateur)
 - **Tags** : vue de tous les tags (tous utilisateurs), triés par fréquence, renommage, suppression, **nettoyage en un clic des tags utilisés une seule fois**
 - **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
 - **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
@@ -102,6 +109,7 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 - **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
 - Suppression en lot des liens morts (inaccessibles et timeouts)
 - Barres d'action fixes (rouge pour les morts, jaune pour les redirigés) — flottent au-dessus du footer avec fond opaque
+- Bouton **Continuer** (reprend les liens non vérifiés) ou **Revérifier tout** — bouton **Stop** pour interrompre
 - Réinitialisation des statuts en un clic
 - Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
 
@@ -251,7 +259,8 @@ KT-Start/
 │   │   ├── Router.php                  # Routes par ?action=xxx
 │   │   └── View.php                    # render(), renderRaw(), e(), asset()
 │   ├── Repository/
-│   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, getAllTags
+│   │   ├── BookmarkRepository.php      # findPublic, findFiltered, CRUD, reorder, setFolderAndPosition, getAllTags
+│   │   ├── FolderRepository.php        # CRUD dossiers, hiérarchie parent/enfant, wouldCreateCycle, deleteAndLiftChildren
 │   │   ├── ListRepository.php          # CRUD + findDefault, setDefault, clearDefault
 │   │   ├── SettingsRepository.php      # get, set, all — table settings clé/valeur
 │   │   ├── StatsRepository.php         # overview, perUser, perList, perLinkStatus, topTags, perMonth, perBadgeStyle
@@ -274,7 +283,8 @@ KT-Start/
 │   │   └── maintenance.php             # Migration + journal
 │   ├── auth/login.php
 │   └── bookmarks/
-│       ├── index.php                   # 3 vues, drag & drop, pagination, nuage de tags, tout afficher
+│       ├── index.php                   # 4 vues (badges/table/liste/explorer), dossiers, drag & drop, pagination, nuage de tags, tout afficher
+│       ├── links.php                   # Rapport de vérification des liens
 │       └── bookmarklet.php             # Popup autonome d'ajout rapide (sans layout)
 ├── .env
 ├── .env.local
@@ -290,7 +300,8 @@ KT-Start/
 |---|---|
 | `users` | Comptes utilisateurs (email, hash, rôle) |
 | `lists` | Listes (`is_default` pour liste affichée par défaut) |
-| `bookmarks` | Favoris (URL, titre, tags, badge, visibilité, position) |
+| `bookmarks` | Favoris (URL, titre, tags, badge, visibilité, position, dossier) |
+| `folders` | Dossiers organisés en hiérarchie parent/enfant par liste |
 | `settings` | Paramètres applicatifs clé/valeur (ex: `bookmarks_per_page`) |
 
 ---
@@ -315,6 +326,10 @@ KT-Start/
 | `bookmark_reset_status` | POST | Auth | Réinitialiser tous les statuts |
 | `bookmark_delete_dead` | POST | Auth | Supprimer les favoris morts sélectionnés |
 | `bookmark_follow_redirect` | POST | Auth | Mettre à jour l'URL finale d'un favori redirigé (JSON) |
+| `bookmark_folder_store` | POST | Auth | Créer un dossier dans une liste |
+| `bookmark_folder_rename` | POST | Auth | Renommer un dossier |
+| `bookmark_folder_delete` | POST | Auth | Supprimer un dossier (remonte les enfants) |
+| `bookmark_explorer_reorder` | POST | Auth | Réorganiser favoris et dossiers (vue Explorateur) |
 | `bookmarklet` | GET | Public | Popup d'ajout rapide (URL + titre pré-remplis depuis le navigateur) |
 | `bookmarklet_store` | POST | Public | Enregistrer le favori depuis la popup bookmarklet |
 | `admin` | GET | Admin | Dashboard d'administration |

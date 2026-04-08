@@ -21,7 +21,7 @@ src/
 ├── Controller/
 │   ├── AdminController.php # index, usersPage, listsPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
-│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect(), bookmarklet(), bookmarkletStore()
+│   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect(), folderStore(), folderRename(), folderDelete(), explorerReorder(), bookmarklet(), bookmarkletStore()
 ├── Core/
 │   ├── Auth.php            # Session : ktstart_session (≠ ktdrop_session), isAdmin()
 │   ├── Csrf.php
@@ -31,7 +31,8 @@ src/
 │   ├── Router.php          # Routes par ?action=xxx, non-auth → ?action=home
 │   └── View.php            # render(), renderRaw() (sans layout — popup bookmarklet), e(), asset() → 'public/assets/...'
 ├── Repository/
-│   ├── BookmarkRepository.php  # findPublic(), findFiltered(), CRUD, reorder(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
+│   ├── BookmarkRepository.php  # findPublic(), findPublicByList(), findFiltered(), findByUserAndListWithFolder(), CRUD, reorder(), setFolderAndPosition(), getAllTags(), getAllTagsAdmin(), renameTag(), deleteTag(), deleteTagsUsedOnce(), findByUrl(), findAllByUser(), updateCheckStatus(), resetCheckStatus(), updateUrl(), deleteMultiple(), countDeadLinksAll()
+│   ├── FolderRepository.php    # findAllByUserInList(), findAllByListId(), findById(), existsForUserInList(), create(), rename(), setParentAndPosition(), wouldCreateCycle(), deleteAndLiftChildren(), groupByParent()
 │   ├── ListRepository.php      # findAll(), findByName(), create(), rename(), findAllWithCount(), findDefault(), setDefault(), clearDefault()
 │   ├── SettingsRepository.php  # get(), set(), all() — table settings clé/valeur
 │   ├── StatsRepository.php     # overview(), perUser(), perList(), perLinkStatus(), topTags(), perMonth(), perBadgeStyle()
@@ -71,11 +72,22 @@ CREATE TABLE bookmarks (
     tags TEXT,           -- virgule-séparé ex: "php,dev"
     visibility TEXT NOT NULL DEFAULT 'private',  -- 'public' | 'private'
     list_id INTEGER REFERENCES lists(id),
+    folder_id INTEGER REFERENCES folders(id),  -- dossier optionnel dans la liste
     user_id INTEGER NOT NULL REFERENCES users(id),
     position INTEGER DEFAULT 0,
     created_at TEXT NOT NULL,
     last_check_status TEXT,   -- 'ok' | 'redirect' | 'error' | 'timeout' | NULL (non vérifié)
     last_check_at TEXT        -- datetime de la dernière vérification
+);
+
+CREATE TABLE folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    list_id INTEGER NOT NULL REFERENCES lists(id),
+    parent_id INTEGER REFERENCES folders(id),  -- hiérarchie parent/enfant
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
 );
 
 CREATE TABLE settings (
@@ -100,6 +112,10 @@ Toutes les routes passent par `?action=xxx` :
 - `bookmark_reset_status` (POST, auth) → remet last_check_status/at à NULL pour tous les favoris du user
 - `bookmark_delete_dead` (POST, auth) → supprime une liste d'ids (favoris morts sélectionnés)
 - `bookmark_follow_redirect` (POST JSON, auth) → suit le 301 d'un favori, met à jour url/host en DB, remet last_check_status à NULL
+- `bookmark_folder_store` (POST, auth) → crée un dossier dans une liste
+- `bookmark_folder_rename` (POST, auth) → renomme un dossier
+- `bookmark_folder_delete` (POST, auth) → supprime un dossier et remonte ses enfants (favoris + sous-dossiers) au niveau parent
+- `bookmark_explorer_reorder` (POST JSON, auth) → réorganise favoris et dossiers dans la vue Explorateur
 - `bookmarklet` (GET, public) → popup autonome d'ajout rapide, reçoit `url` et `title` en GET, auth gérée dans le controller (3 états : non connecté / formulaire / succès)
 - `bookmarklet_store` (POST, public) → enregistre le favori depuis la popup, affiche l'état succès avec bouton `window.close()`
 - `admin` (GET, admin) → dashboard avec 8 cartes de navigation
@@ -147,12 +163,13 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 ## Templates
 - `templates/layout.php` — navbar fixe glassmorphism, footer fixe, back-to-top, icône maison → `?action=bookmarks` (tous users connectés), lien Admin (admin only, visible sur mobile)
 - `templates/auth/login.php`
-- `templates/bookmarks/index.php` — 3 vues (badges/table/liste), modal add/edit `.ks-modal`, bouton poubelle `.ks-quick-delete` inline sur chaque favori, modal de confirmation suppression `#deleteConfirmModal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique
+- `templates/bookmarks/index.php` — 4 vues (badges/table/liste/explorer), modal add/edit `.ks-modal`, bouton poubelle `.ks-quick-delete` inline sur chaque favori, modal de confirmation suppression `#deleteConfirmModal`, drag & drop, contrôle taille badges, recherche, pagination + bouton ∞ "tout afficher", nuage de tags collapse, détection doublon URL inline, `$readOnly` pour vue publique ; vue Explorer avec navigation hiérarchique par dossiers (`.ks-folder-section-header`)
+- `templates/bookmarks/links.php` — page rapport des liens (sans layout propre, rendu dans layout) ; résumé 4 compteurs, barre de progression, sections par statut, vérification URL par URL (JS async/await), boutons Continuer/Stop/Tout revérifier, sélection en lot pour suppression/mise à jour
 - `templates/bookmarks/bookmarklet.php` — page popup autonome (sans layout), 3 états : `$notLogged` / formulaire / `$saved` ; champs URL+titre pré-remplis, liste, tags, couleur badge, visibilité
 - `templates/admin/index.php` — dashboard 8 cartes de navigation (dont "Vérification des liens" avec badge rouge si liens morts)
 - `templates/admin/users.php` — gestion utilisateurs (table + modal add/edit + delete + confirmation mot de passe)
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
-- `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
+- `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy + case à cocher `check_proxy_enabled`) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
 - `templates/admin/backup.php` — export v1/v2 + import + restauration complète
 - `templates/admin/maintenance.php` — migration runner + journal
 - `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
@@ -206,14 +223,15 @@ Fichier : `public/assets/css/app.css`
 - **Détection de doublons URL** : `bookmark_check_duplicate` → GET JSON `{found, bookmark}`, `findByUrl()` avec `exclude_id` pour le mode édition — alerte inline sous le champ URL en mode add/edit
 - **Persistance liste sélectionnée** : `$_SESSION['ktstart_list']` mémorisé à chaque sélection explicite de liste, restauré si retour sur `?action=bookmarks` sans paramètre `list`
 - **Tags cleanup** : `deleteTagsUsedOnce()` dans `BookmarkRepository` — supprime d'un coup tous les tags apparaissant dans un seul favori ; bouton "Nettoyer (N unique(s))" sur la page `admin_tags`
-- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 3 vues (point bas-droite dans le badge coloré) ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action `position:fixed` au-dessus du footer (`z-index:1025`, `bottom:calc(var(--app-footer-height)+.5rem)`), fond opaque : `#fff5f5` (rouge) / `#fffdf0` (jaune)
+- **Vérification des liens** : `UrlCheckService::check()` — HEAD (fallback GET si 405), `getFirstHttpCode()` sans suivre les redirections pour détecter les 301 ; statuts `ok/redirect/error/timeout` stockés dans `last_check_status` + `last_check_at` ; vérification URL par URL depuis le JS (async/await enchaîné) ; indicateurs `.ks-link-dot` sur les 4 vues (point bas-droite dans le badge coloré) ; rapport groupé par statut avec suppression en lot (morts) et mise à jour URL (redirigés) ; barres d'action `position:fixed` au-dessus du footer (`z-index:1025`, `bottom:calc(var(--app-footer-height)+.5rem)`), fond opaque : `#fff5f5` (rouge) / `#fffdf0` (jaune)
 - **Mise à jour URL redirigées** : `UrlCheckService::getFinalUrl()` suit les redirections (`CURLOPT_FOLLOWLOCATION`, `CURLINFO_EFFECTIVE_URL`) ; `BookmarkRepository::updateUrl()` met à jour url + host et remet last_check_status à NULL ; endpoint `bookmark_follow_redirect` traite un favori à la fois via JS fetch
 - **Dashboard admin — liens morts** : `BookmarkRepository::countDeadLinksAll()` compte les favoris en statut `error` ou `timeout` tous utilisateurs confondus ; `$deadLinkCount` passé au template ; badge rouge affiché sur la carte "Vérification des liens" si > 0
-- **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage
+- **Proxy vérification liens** : `CHECK_PROXY` — priorité DB (`settings.check_proxy`) → `.env` → vide ; configurable depuis Admin → Paramètres sans redémarrage ; `check_proxy_enabled` (DB, `0`/`1`) — case à cocher pour désactiver sans effacer la valeur
 - **Robustesse migration** : `countDeadLinksAll()`, `StatsRepository::overview()` et `perLinkStatus()` protégés par `try/catch` — retournent 0 si `last_check_status` absent (migration non encore lancée), évite le fatal error sur `?action=admin`
 - **StatsRepository** : utilise `Database::connection()` (pas `getInstance()` qui n'existe pas) ; tous les chiffres calculés côté SQL sauf `topTags()` qui agrège les chaînes virgule-séparées en PHP
 - **Mode sombre — fond** : `background-attachment: fixed` conservé en mode clair seulement ; en mode sombre, fond couleur unie sans gradient (les `radial-gradient` fixes créent des bandes répétées visibles au scroll sur fond sombre)
 
+- **Dossiers** : table `folders` avec hiérarchie parent/enfant (`parent_id` nullable) ; `FolderRepository::wouldCreateCycle()` prévient les boucles ; `deleteAndLiftChildren()` remonte les sous-dossiers et favoris d'un niveau (pas de suppression en cascade) ; Vue Explorer (`view=explorer`) — 4ème vue avec navigation par dossiers, `foldersByParent` + `bookmarksByFolder` passés au template ; `bookmark_explorer_reorder` reçoit un tableau JSON `{folders:[…], bookmarks:[…]}` et met à jour les positions + folder_id via `setParentAndPosition()` et `setFolderAndPosition()`
 ## Ce qui reste à faire (non implémenté)
 - ~~Page de statistiques (répartition par liste, tag, visibilité)~~ ✓ implémenté
 - ~~Vérification automatique des favoris inaccessibles (lien mort)~~ ✓ implémenté

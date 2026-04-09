@@ -260,10 +260,6 @@ if (!empty($folders) && $listId !== null) {
         $bmByFolder[$key][] = $bm;
     }
 }
-$foldersById = [];
-foreach ($folders ?? [] as $f) {
-    $foldersById[(int) $f['id']] = $f;
-}
 
 // Compte les favoris d'un dossier et de tous ses descendants
 $countBmRecursive = function(int $fid) use (&$countBmRecursive, $bmByFolder, $foldersByParent): int {
@@ -422,8 +418,6 @@ $renderFolderLevel = function(int $parentKey, bool $isRoot) use (&$renderFolderL
             <div class="ks-folder-nested-content">
                 <?php $renderFolderLevel($fid, false); ?>
             </div>
-            <?php else: ?>
-            <?php $renderFolderLevel($fid, false); ?>
             <?php endif; ?>
             <div class="ks-badges-grid mb-3<?= empty($bmByFolder[$fid]) ? ' ks-drop-target-empty' : '' ?>"
                  data-folder-id="<?= $fid ?>"
@@ -718,7 +712,15 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
     <div class="alert alert-info mb-0">Sélectionnez une liste pour utiliser l'explorateur de dossiers.</div>
 <?php else: ?>
     <?php
-    $renderExplorerNodes = function (?int $parentId = null, bool $collapsed = false) use (&$renderExplorerNodes, $foldersByParent, $bookmarksByFolder, $q): void {
+    $countExplorerRecursive = function(int $fid) use (&$countExplorerRecursive, $bookmarksByFolder, $foldersByParent): int {
+        $count = count($bookmarksByFolder[$fid] ?? []);
+        foreach ($foldersByParent[$fid] ?? [] as $child) {
+            $count += $countExplorerRecursive((int) $child['id']);
+        }
+        return $count;
+    };
+
+    $renderExplorerNodes = function (?int $parentId = null, bool $collapsed = false) use (&$renderExplorerNodes, $foldersByParent, $bookmarksByFolder, $countExplorerRecursive, $q): void {
         $parentKey = $parentId ?? 0;
         $childFolders = $foldersByParent[$parentKey] ?? [];
         $childBookmarks = $bookmarksByFolder[$parentKey] ?? [];
@@ -750,7 +752,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                             </button>
                             <i class="bi bi-folder2 text-warning"></i>
                             <span class="fw-semibold"><?= View::e($folder['name']) ?></span>
-                            <?php $folderBmCount = count($bookmarksByFolder[(int)$folder['id']] ?? []); ?>
+                            <?php $folderBmCount = $countExplorerRecursive((int) $folder['id']); ?>
                             <?php if ($folderBmCount > 0): ?>
                             <span class="badge text-bg-secondary ms-1"><?= $folderBmCount ?></span>
                             <?php endif; ?>
@@ -787,6 +789,11 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                                     data-list-id="<?= (int) $bm['list_id'] ?>"
                                     data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
                                 <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
+                                    data-delete-id="<?= $bm['id'] ?>"
+                                    title="Supprimer">
+                                <i class="bi bi-trash"></i>
                             </button>
                         </div>
                     </div>
@@ -1047,13 +1054,24 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                             <label class="form-label">Dossier</label>
                             <select class="form-select" name="folder_id" id="bmFolderId">
                                 <option value="">— Racine de la liste —</option>
-                                <?php foreach (($folders ?? []) as $folder): ?>
-                                    <option value="<?= (int) $folder['id'] ?>"
-                                            data-list-id="<?= (int) $folder['list_id'] ?>"
-                                            data-parent-id="<?= $folder['parent_id'] !== null ? (int) $folder['parent_id'] : '' ?>">
-                                        <?= View::e($folder['name']) ?>
-                                    </option>
-                                <?php endforeach; ?>
+                                <?php
+                                $byParentForSelect = [];
+                                foreach ($folders ?? [] as $f) {
+                                    $byParentForSelect[$f['parent_id'] !== null ? (int)$f['parent_id'] : 0][] = $f;
+                                }
+                                $renderFolderOption = function(int $pk, int $depth) use (&$renderFolderOption, $byParentForSelect): void {
+                                    foreach ($byParentForSelect[$pk] ?? [] as $folder) {
+                                        $prefix = str_repeat('  ', $depth) . ($depth > 0 ? '└ ' : '');
+                                        echo '<option value="' . (int)$folder['id'] . '"'
+                                            . ' data-list-id="' . (int)$folder['list_id'] . '"'
+                                            . ' data-parent-id="' . ($folder['parent_id'] !== null ? (int)$folder['parent_id'] : '') . '">'
+                                            . $prefix . \App\Core\View::e($folder['name'])
+                                            . '</option>';
+                                        $renderFolderOption((int)$folder['id'], $depth + 1);
+                                    }
+                                };
+                                $renderFolderOption(0, 0);
+                                ?>
                             </select>
                             <div class="form-text">Le dossier doit appartenir à la liste sélectionnée.</div>
                         </div>
@@ -1409,6 +1427,19 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                 });
             }
 
+            let pendingBadgeSave = new Set();
+            let badgeSaveTimer = null;
+
+            function scheduleBadgeSave(container) {
+                pendingBadgeSave.add(container);
+                clearTimeout(badgeSaveTimer);
+                badgeSaveTimer = setTimeout(() => {
+                    const toSave = [...pendingBadgeSave];
+                    pendingBadgeSave.clear();
+                    toSave.forEach(saveBadgesContainer);
+                }, 300);
+            }
+
             async function saveBadgesContainer(container) {
                 const folderId = container.dataset.folderId;
                 const parentId = (folderId === '' || folderId === undefined) ? null : parseInt(folderId, 10);
@@ -1500,9 +1531,9 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                             }
                         });
                         hoverOpenedTriggers.clear();
-                        saveBadgesContainer(evt.to);
+                        scheduleBadgeSave(evt.to);
                         if (evt.from !== evt.to) {
-                            saveBadgesContainer(evt.from);
+                            scheduleBadgeSave(evt.from);
                             updateFolderCount(evt.to);
                             updateFolderCount(evt.from);
                         }

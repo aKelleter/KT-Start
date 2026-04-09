@@ -20,7 +20,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 
 ### Gestion des favoris
 - Ajout d'un favori avec récupération automatique du titre, de l'hôte et de la description (via `UrlMetaService`)
-- **Bookmarklet** — bouton à glisser dans la barre du navigateur pour ajouter la page courante en un clic, sans quitter l'onglet (popup autonome 480×580)
+- **Bookmarklet** — bouton à glisser dans la barre du navigateur pour ajouter la page courante en un clic, sans quitter l'onglet (popup autonome 480×580) ; liste par défaut pré-sélectionnée ; sélecteur de dossier hiérarchique filtré selon la liste choisie ; autocomplétion des tags existants
 - **Détection de doublons d'URL** en temps réel lors de l'ajout ou de la modification
 - Modification et suppression, toutes les actions protégées par CSRF
 - **Suppression rapide** directement sur chaque favori (icône poubelle sur les 3 vues) avec confirmation en modal Bootstrap
@@ -33,6 +33,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - **Bouton "tout afficher"** (∞) pour désactiver la pagination à la volée
 - Compteur `X / Y favoris` — affiche le nombre sur la page et le total filtré
 - **Bouton "remonter en haut"** flottant (apparaît après défilement)
+- **Raccourci clavier `N`** pour ouvrir le formulaire d'ajout depuis n'importe quelle vue (ignoré si un champ de saisie est actif)
 
 ### Listes
 - Organisation des favoris en listes personnalisées
@@ -55,7 +56,7 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 ### Tags
 - Tags multiples séparés par virgule sur chaque favori
 - Filtrage par tag via un clic sur n'importe quelle étiquette
-- Autocomplétion des tags existants dans le formulaire
+- **Autocomplétion multi-valeur** des tags existants — `<datalist>` dynamique reconstruit à chaque frappe, gère les valeurs séparées par virgule, filtre les tags déjà saisis
 - **Nuage de tags** — collapse dans la barre d'outils, trié par fréquence, taille proportionnelle à l'usage
 
 ### Badges (style visuel)

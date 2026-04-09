@@ -38,7 +38,8 @@ Application web de gestion de favoris auto-hébergée, développée en PHP natif
 - Organisation des favoris en listes personnalisées
 - Création d'une nouvelle liste directement depuis le formulaire d'ajout
 - **Liste par défaut** configurable — affichée automatiquement à l'ouverture (connecté ou non)
-- Filtrage par liste via un **dropdown avec recherche live** dans la barre d'outils
+- Filtrage par liste via un **dropdown avec recherche live** dans la barre d'outils ou une **rangée de boutons** sous la toolbar
+- Bouton toggle (entre le Tri et le filtre Liste) pour basculer entre les deux modes — préférence persistée dans `localStorage`, appliquée sans flash au chargement
 - Sélection de liste dans les modaux ajout/édition via un dropdown searchable
 - "— Toutes" accessible explicitement, préservé lors de la pagination et des recherches
 

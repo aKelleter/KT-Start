@@ -195,7 +195,8 @@ $badgeStyles = BadgeStyles::all();
     </a>
     <button class="btn btn-sm btn-primary"
             data-bs-toggle="modal" data-bs-target="#bookmarkModal"
-            data-mode="add">
+            data-mode="add"
+            title="Nouveau favori (Touche N)">
         <i class="bi bi-plus-lg me-1"></i>Ajouter
     </button>
     <?php if ($listId !== null): ?>
@@ -1350,6 +1351,32 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
     document.querySelectorAll('.ks-badge-style-radio').forEach(radio => {
         radio.addEventListener('change', () => selectBadgeStyle(radio.value));
     });
+
+    // Autocomplete tags multi-valeur (séparés par virgule)
+    (function () {
+        const input = document.getElementById('bmTags');
+        if (!input) return;
+        const tags = <?= json_encode(array_keys($allTags ?? []), JSON_UNESCAPED_UNICODE) ?>;
+        if (!tags.length) return;
+
+        const dl = document.createElement('datalist');
+        dl.id = '_dl_bmTags';
+        input.setAttribute('list', dl.id);
+        document.body.appendChild(dl);
+
+        function refresh() {
+            const val    = input.value;
+            const comma  = val.lastIndexOf(',');
+            const prefix = comma >= 0 ? val.substring(0, comma + 1) + ' ' : '';
+            const done   = val.split(',').map(t => t.trim()).filter(Boolean);
+            dl.innerHTML = tags
+                .filter(t => !done.includes(t))
+                .map(t => `<option value="${prefix}${t}"></option>`)
+                .join('');
+        }
+        input.addEventListener('input', refresh);
+        input.addEventListener('focus', refresh);
+    })();
 })();
 </script>
 
@@ -1813,6 +1840,22 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
     btnLarger.addEventListener ('click', () => { if (idx < SIZES.length - 1) { idx++; apply(); } });
 
     apply();
+})();
+</script>
+<?php endif; ?>
+
+<?php if (!$readOnly): ?>
+<!-- ── Raccourci clavier N → modal d'ajout ───────────────────────────────── -->
+<script>
+(function () {
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'n' && e.key !== 'N') return;
+        const tag = (document.activeElement?.tagName ?? '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select'
+            || document.activeElement?.isContentEditable) return;
+        const btn = document.querySelector('[data-bs-target="#bookmarkModal"][data-mode="add"]');
+        if (btn) btn.click();
+    });
 })();
 </script>
 <?php endif; ?>

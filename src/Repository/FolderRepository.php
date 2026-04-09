@@ -7,6 +7,16 @@ use App\Core\Database;
 
 final class FolderRepository
 {
+    /** Retourne tous les dossiers d'un utilisateur, toutes listes confondues. */
+    public function findAllByUser(int $userId): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT * FROM folders WHERE user_id = :user_id ORDER BY list_id ASC, position ASC, LOWER(name) ASC'
+        );
+        $stmt->execute(['user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+
     public function findAllByUserInList(int $userId, int $listId): array
     {
         $stmt = Database::connection()->prepare(

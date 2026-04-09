@@ -646,7 +646,9 @@ final class BookmarkController
             'title'       => $title,
             'host'        => $host,
             'lists'       => (new ListRepository())->findAll(),
+            'folders'     => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
             'badgeStyles' => \App\Config\BadgeStyles::all(),
+            'allTags'     => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
             'csrf'        => Csrf::token(),
             'notLogged'   => false,
             'saved'       => false,
@@ -663,11 +665,13 @@ final class BookmarkController
 
         if (!Csrf::validate($_POST['_csrf'] ?? null)) {
             View::renderRaw('bookmarks/bookmarklet', [
-                'notLogged' => false, 'saved' => false, 'error' => 'Jeton CSRF invalide.',
+                'notLogged'  => false, 'saved' => false, 'error' => 'Jeton CSRF invalide.',
                 'url' => '', 'title' => '', 'host' => '',
-                'lists' => (new ListRepository())->findAll(),
+                'lists'      => (new ListRepository())->findAll(),
+                'folders'    => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
                 'badgeStyles' => \App\Config\BadgeStyles::all(),
-                'csrf' => Csrf::token(),
+                'allTags'    => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
+                'csrf'       => Csrf::token(),
             ]);
             return;
         }
@@ -675,13 +679,15 @@ final class BookmarkController
         $url = trim($_POST['url'] ?? '');
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             View::renderRaw('bookmarks/bookmarklet', [
-                'notLogged' => false, 'saved' => false, 'error' => 'URL invalide.',
-                'url'   => $url,
-                'title' => trim($_POST['title'] ?? ''),
-                'host'  => (string) parse_url($url, PHP_URL_HOST),
-                'lists' => (new ListRepository())->findAll(),
+                'notLogged'  => false, 'saved' => false, 'error' => 'URL invalide.',
+                'url'        => $url,
+                'title'      => trim($_POST['title'] ?? ''),
+                'host'       => (string) parse_url($url, PHP_URL_HOST),
+                'lists'      => (new ListRepository())->findAll(),
+                'folders'    => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
                 'badgeStyles' => \App\Config\BadgeStyles::all(),
-                'csrf'  => Csrf::token(),
+                'allTags'    => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
+                'csrf'       => Csrf::token(),
             ]);
             return;
         }
@@ -698,7 +704,7 @@ final class BookmarkController
             'tags'        => $this->normalizeTags($_POST['tags'] ?? ''),
             'visibility'  => ($_POST['visibility'] ?? 'private') === 'public' ? 'public' : 'private',
             'list_id'     => $listId,
-            'folder_id'   => null,
+            'folder_id'   => isset($_POST['folder_id']) && $_POST['folder_id'] !== '' ? (int) $_POST['folder_id'] : null,
             'user_id'     => (int) Auth::id(),
             'position'    => 0,
             'created_at'  => date('Y-m-d H:i:s'),

@@ -48,6 +48,7 @@ $badgeStyles = BadgeStyles::all();
 <?php endif; ?>
 
 <!-- ── Barre d'outils ────────────────────────────────────────────────────── -->
+<script>document.documentElement.dataset.listNav = localStorage.getItem('ks-list-nav') || '<?= $listNavStyle ?>';</script>
 <div class="ks-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
 
     <!-- Switcher de vue -->
@@ -94,6 +95,7 @@ $badgeStyles = BadgeStyles::all();
 
     <!-- Filtre liste -->
     <?php
+        $listNavStyle = $listNavStyle ?? 'dropdown';
         $currentListName = null;
         if ($listId !== null) {
             foreach ($lists as $l) {
@@ -106,7 +108,7 @@ $badgeStyles = BadgeStyles::all();
             ? View::e($currentListName)
             : ($listExplicitlyChosen ? '— Toutes' : 'Liste');
     ?>
-    <div class="dropdown">
+    <div id="ks-list-filter-dropdown" class="dropdown">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $listExplicitlyChosen ? ' text-primary fw-semibold' : '' ?>"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside">
             <i class="bi bi-collection me-1"></i><?= $listLabel ?>
@@ -128,6 +130,7 @@ $badgeStyles = BadgeStyles::all();
             </div>
         </div>
     </div>
+    <button id="btnListNavToggle" class="btn btn-sm btn-outline-secondary" title=""></button>
 
     <!-- Nuage de tags (toggle) -->
     <?php if (!empty($allTags)): ?>
@@ -202,6 +205,22 @@ $badgeStyles = BadgeStyles::all();
     <?php endif; ?>
     <?php endif; ?>
 </div>
+
+<!-- ── Navigation par listes (mode boutons) ──────────────────────────────── -->
+<?php if (!empty($lists)): ?>
+<div id="ks-list-nav-buttons" class="ks-list-nav-buttons d-flex flex-wrap align-items-center gap-1 mb-3">
+    <a href="<?= $q(['list' => 0, 'tag' => null, 'page' => null]) ?>"
+       class="btn btn-sm<?= $listId === null ? ' btn-primary' : ' btn-outline-secondary' ?>">
+        <i class="bi bi-collection me-1"></i>Toutes
+    </a>
+    <?php foreach ($lists as $l): ?>
+    <a href="<?= $q(['list' => $l['id'], 'tag' => null, 'page' => null]) ?>"
+       class="btn btn-sm<?= $listId === (int) $l['id'] ? ' btn-primary' : ' btn-outline-secondary' ?>">
+        <?= View::e($l['name']) ?>
+    </a>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <!-- ── Nuage de tags ─────────────────────────────────────────────────────── -->
 <?php if (!empty($allTags)): ?>
@@ -1650,6 +1669,36 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
 <?php endif; ?>
 
 <?php endif; ?>
+
+<!-- ── JS toggle liste dropdown/boutons ──────────────────────────────────── -->
+<script>
+(function () {
+    const KEY       = 'ks-list-nav';
+    const toggleBtn = document.getElementById('btnListNavToggle');
+    if (!toggleBtn) return;
+
+    let mode = document.documentElement.dataset.listNav || '<?= $listNavStyle ?>';
+
+    function applyIcon(m) {
+        if (m === 'buttons') {
+            toggleBtn.innerHTML = '<i class="bi bi-menu-button-wide-fill"></i>';
+            toggleBtn.title = 'Passer en liste déroulante';
+        } else {
+            toggleBtn.innerHTML = '<i class="bi bi-collection"></i>';
+            toggleBtn.title = 'Passer en boutons';
+        }
+    }
+
+    applyIcon(mode);
+
+    toggleBtn.addEventListener('click', function () {
+        mode = mode === 'buttons' ? 'dropdown' : 'buttons';
+        localStorage.setItem(KEY, mode);
+        document.documentElement.dataset.listNav = mode;
+        applyIcon(mode);
+    });
+})();
+</script>
 
 <!-- ── JS recherche liste ─────────────────────────────────────────────────── -->
 <script>

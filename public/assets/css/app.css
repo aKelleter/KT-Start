@@ -264,6 +264,26 @@ body.app-body {
     transform: translateY(-8px);
 }
 
+/* ── Navigation par listes — toggle dropdown/boutons (anti-flash) ───────── */
+html[data-list-nav="buttons"] #ks-list-filter-dropdown { display: none !important; }
+html[data-list-nav="buttons"] #ks-list-nav-buttons     { display: flex !important; }
+html[data-list-nav="dropdown"] #ks-list-nav-buttons    { display: none !important; }
+html[data-list-nav="dropdown"] #ks-list-filter-dropdown { display: block !important; }
+
+/* ── Navigation par listes — mode boutons ───────────────────────────────── */
+.ks-list-nav-buttons {
+    padding: .25rem .5rem;
+    background: var(--app-surface, rgba(255,255,255,.6));
+    border: 1px solid var(--app-border);
+    border-radius: var(--bs-border-radius-lg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="dark"] .ks-list-nav-buttons {
+    background: rgba(40,44,54,.7);
+}
+
 /* ── Dropdown liste ──────────────────────────────────────────────────────── */
 .ks-list-dropdown-items {
     max-height: 280px;

@@ -108,6 +108,7 @@ $badgeStyles = BadgeStyles::all();
             ? View::e($currentListName)
             : ($listExplicitlyChosen ? '— Toutes' : 'Liste');
     ?>
+    <button id="btnListNavToggle" class="btn btn-sm btn-outline-secondary" title=""></button>
     <div id="ks-list-filter-dropdown" class="dropdown">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle<?= $listExplicitlyChosen ? ' text-primary fw-semibold' : '' ?>"
                 data-bs-toggle="dropdown" data-bs-auto-close="outside">
@@ -130,7 +131,6 @@ $badgeStyles = BadgeStyles::all();
             </div>
         </div>
     </div>
-    <button id="btnListNavToggle" class="btn btn-sm btn-outline-secondary" title=""></button>
 
     <!-- Nuage de tags (toggle) -->
     <?php if (!empty($allTags)): ?>
@@ -1692,10 +1692,47 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
     applyIcon(mode);
 
     toggleBtn.addEventListener('click', function () {
-        mode = mode === 'buttons' ? 'dropdown' : 'buttons';
-        localStorage.setItem(KEY, mode);
-        document.documentElement.dataset.listNav = mode;
-        applyIcon(mode);
+        const next    = mode === 'buttons' ? 'dropdown' : 'buttons';
+        const leaving = document.getElementById(mode === 'buttons' ? 'ks-list-nav-buttons' : 'ks-list-filter-dropdown');
+
+        const DURATION = 400;
+        const EASING   = 'opacity ' + DURATION + 'ms ease, transform ' + DURATION + 'ms ease';
+
+        function doSwitch() {
+            mode = next;
+            localStorage.setItem(KEY, mode);
+            document.documentElement.dataset.listNav = mode;
+            applyIcon(mode);
+
+            const entering = document.getElementById(mode === 'buttons' ? 'ks-list-nav-buttons' : 'ks-list-filter-dropdown');
+            if (entering) {
+                entering.style.opacity   = '0';
+                entering.style.transform = 'translateY(-5px)';
+                entering.getBoundingClientRect(); // force reflow
+                entering.style.transition = EASING;
+                entering.style.opacity    = '1';
+                entering.style.transform  = 'translateY(0)';
+                setTimeout(() => {
+                    entering.style.transition = '';
+                    entering.style.opacity    = '';
+                    entering.style.transform  = '';
+                }, DURATION);
+            }
+        }
+
+        if (leaving) {
+            leaving.style.transition = 'opacity .15s ease, transform .15s ease';
+            leaving.style.opacity    = '0';
+            leaving.style.transform  = 'translateY(-5px)';
+            setTimeout(() => {
+                leaving.style.transition = '';
+                leaving.style.opacity    = '';
+                leaving.style.transform  = '';
+                doSwitch();
+            }, 150);
+        } else {
+            doSwitch();
+        }
     });
 })();
 </script>

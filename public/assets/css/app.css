@@ -265,9 +265,9 @@ body.app-body {
 }
 
 /* ── Navigation par listes — toggle dropdown/boutons (anti-flash) ───────── */
-html[data-list-nav="buttons"] #ks-list-filter-dropdown { display: none !important; }
-html[data-list-nav="buttons"] #ks-list-nav-buttons     { display: flex !important; }
-html[data-list-nav="dropdown"] #ks-list-nav-buttons    { display: none !important; }
+html[data-list-nav="buttons"] #ks-list-filter-dropdown  { display: none !important; }
+html[data-list-nav="buttons"] #ks-list-nav-buttons      { display: flex !important; }
+html[data-list-nav="dropdown"] #ks-list-nav-buttons     { display: none !important; }
 html[data-list-nav="dropdown"] #ks-list-filter-dropdown { display: block !important; }
 
 /* ── Navigation par listes — mode boutons ───────────────────────────────── */

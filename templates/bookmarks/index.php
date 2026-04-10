@@ -1057,12 +1057,12 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                                 <option value="">— Racine de la liste —</option>
                                 <?php
                                 $byParentForSelect = [];
-                                foreach ($folders ?? [] as $f) {
+                                foreach ($allFolders ?? [] as $f) {
                                     $byParentForSelect[$f['parent_id'] !== null ? (int)$f['parent_id'] : 0][] = $f;
                                 }
                                 $renderFolderOption = function(int $pk, int $depth) use (&$renderFolderOption, $byParentForSelect): void {
                                     foreach ($byParentForSelect[$pk] ?? [] as $folder) {
-                                        $prefix = str_repeat('  ', $depth) . ($depth > 0 ? '└ ' : '');
+                                        $prefix = str_repeat("\u{00A0}\u{00A0}", $depth) . ($depth > 0 ? "└\u{00A0}" : '');
                                         echo '<option value="' . (int)$folder['id'] . '"'
                                             . ' data-list-id="' . (int)$folder['list_id'] . '"'
                                             . ' data-parent-id="' . ($folder['parent_id'] !== null ? (int)$folder['parent_id'] : '') . '">'

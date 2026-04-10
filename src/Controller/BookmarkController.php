@@ -142,6 +142,7 @@ final class BookmarkController
             'bookmarks'    => $bookmarkRepo->findFiltered($userId, $listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'      => $bookmarkRepo->getAllTags($userId),
             'folders'      => $folders,
+            'allFolders'   => $folderRepo->findAllByUser($userId),
             'foldersByParent'   => $foldersByParent,
             'bookmarksByFolder' => $bookmarksByFolder,
             'listId'       => $listId,

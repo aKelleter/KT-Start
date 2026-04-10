@@ -128,6 +128,7 @@ $router->post('admin_folder_reorder',      [AdminController::class, 'adminFolder
 $router->get('admin_export',         [AdminController::class, 'exportBookmarks']);
 $router->get('admin_export_full',    [AdminController::class, 'exportFull']);
 $router->post('admin_import',        [AdminController::class, 'importBookmarks']);
+$router->post('admin_import_html',   [AdminController::class, 'importHtmlBookmarks']);
 
 $action = $_GET['action'] ?? 'home';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

@@ -998,6 +998,32 @@ html[data-list-nav="dropdown"] #ks-list-filter-dropdown { display: block !import
 
 .ks-migration-line.muted { color: var(--app-muted); }
 
+/* ── Backup page ─────────────────────────────────────────────────────────── */
+.ks-section-label {
+    font-size: .68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--app-muted);
+    margin-bottom: .5rem;
+    padding-left: .25rem;
+}
+
+/* Inset divider inside grouped cards (iOS-style) */
+.ks-inset-divider {
+    height: 1px;
+    background: var(--app-border);
+    margin: 0 1.25rem;
+}
+
+/* Hover state on backup rows */
+.ks-backup-row {
+    transition: background .15s;
+}
+.ks-backup-row:hover {
+    background: rgba(0, 0, 0, .02);
+}
+
 /* ── Login ───────────────────────────────────────────────────────────────── */
 .app-login-wrap {
     min-height: calc(100vh - var(--app-header-height) - var(--app-footer-height));
@@ -1271,6 +1297,10 @@ td .ks-link-dot {
 
 [data-theme="dark"] .ks-migration-log {
     background: #333740;
+}
+
+[data-theme="dark"] .ks-backup-row:hover {
+    background: rgba(255, 255, 255, .03);
 }
 
 [data-theme="dark"] .ks-admin-nav-card:hover {

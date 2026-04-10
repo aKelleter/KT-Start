@@ -19,7 +19,7 @@ src/
 │   ├── BadgeStyles.php     # 12 styles de badge avec gradient() — deepBlue, turquoise, etc.
 │   └── Config.php          # Accès à $_ENV
 ├── Controller/
-│   ├── AdminController.php # index, usersPage, listsPage, foldersPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, adminFolderStore/Rename/Delete/Reorder, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks
+│   ├── AdminController.php # index, usersPage, listsPage, foldersPage, settingsPage, backupPage, maintenancePage, tagsPage, statsPage, tagRename, tagDelete, userStore/Update/Delete, listStore/Rename/Delete/SetDefault, adminFolderStore/Rename/Delete/Reorder, settingUpdate, runMigration, exportBookmarks, exportFull, importBookmarks, importHtmlBookmarks
 │   ├── AuthController.php  # login, logout → redirige vers ?action=home
 │   └── BookmarkController.php  # home(), index(), store(), update(), delete(), reorder(), fetchMeta(), checkDuplicate(), linksReport(), checkSingleLink(), deleteDeadLinks(), resetLinkStatus(), followRedirect(), folderStore(), folderRename(), folderDelete(), explorerReorder(), bookmarklet(), bookmarkletStore()
 ├── Core/
@@ -38,7 +38,7 @@ src/
 │   ├── StatsRepository.php     # overview(), perUser(), perList(), perLinkStatus(), topTags(), perMonth(), perBadgeStyle()
 │   └── UserRepository.php      # CRUD complet, emailExists()
 └── Service/
-    ├── ImportExportService.php # export() v1 favoris, exportFull() v2 backup, import() détection auto v1/v2
+    ├── ImportExportService.php # export() v1 favoris, exportFull() v2 backup, import() détection auto v1/v2 ; importHtml() parser Netscape HTML (Firefox/Chrome/Safari/Edge) ; importFirefoxJson() backup JSON interne Firefox (text/x-moz-place)
     ├── MigrationService.php    # Migrations idempotentes : PRAGMA + ALTER TABLE ADD COLUMN
     ├── UrlCheckService.php     # check() HEAD/GET cURL, statuts ok/redirect/error/timeout, getFinalUrl() suit les redirections, proxy DB→.env
     └── UrlMetaService.php      # curl + DOMDocument → title/host/description
@@ -142,6 +142,7 @@ Toutes les routes passent par `?action=xxx` :
 - `admin_export` (GET, admin) → export favoris v1 (user courant), téléchargement JSON
 - `admin_export_full` (GET, admin) → backup complet v2 (toutes tables), téléchargement JSON
 - `admin_import` (POST, admin) → import v1 ou v2 selon `version` dans le fichier ; `full_restore=1` → purge toutes les tables + session_destroy + redirect login
+- `admin_import_html` (POST, admin) → import depuis navigateur : détection auto HTML Netscape (`NETSCAPE-Bookmark-file`) ou JSON Firefox (`text/x-moz-place`) ; liste cible choisie ou créée à la volée ; dossiers recréés hiérarchiquement
 
 ## Environnement
 - `.env` — config de base, commité
@@ -176,7 +177,7 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
 - `templates/admin/folders.php` — gestion dossiers : sélecteur de liste, arbre hiérarchique récursif (`$renderTree`), drag & drop SortableJS (réorganisation + nidification), modals créer/renommer/supprimer, debounce 600ms, badge email propriétaire, anti-cycle (`wouldCreateCycleAdmin`)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy + case à cocher `check_proxy_enabled`) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
-- `templates/admin/backup.php` — export v1/v2 + import + restauration complète
+- `templates/admin/backup.php` — deux sections "Exporter" / "Importer" (cards groupées iOS, section labels, dividers insets) ; export v1/v2 ; import JSON KT-Start (v1/v2) + restauration complète ; import navigateur HTML/JSON Firefox avec sélecteur de liste cible
 - `templates/admin/maintenance.php` — migration runner + journal
 - `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
 - `templates/admin/stats.php` — 6 cartes résumé, graphique barres mensuel (12 mois, CSS pur), répartitions par liste / statut liens / top tags / utilisateur / style de badge
@@ -254,5 +255,5 @@ Fichier : `public/assets/css/app.css`
 - ~~Bookmarklet (ajout rapide depuis le navigateur)~~ ✓ implémenté
 - ~~Sous-dossiers dans les vues badges/tableau/liste~~ ✓ implémenté
 - ~~Gestion des dossiers dans l'administration~~ ✓ implémenté
+- ~~Import de favoris au format HTML (Netscape bookmarks)~~ ✓ implémenté
 - Rôle `editor` (multi-utilisateurs sans accès admin)
-- Import de favoris au format HTML (Netscape bookmarks)

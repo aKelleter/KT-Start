@@ -5,6 +5,7 @@ namespace App\Service;
 
 use App\Core\Database;
 use App\Repository\BookmarkRepository;
+use App\Repository\FolderRepository;
 use App\Repository\ListRepository;
 use App\Repository\SettingsRepository;
 use App\Repository\UserRepository;
@@ -352,6 +353,257 @@ final class ImportExportService
                 'created_at'  => $createdAt,
             ]);
 
+            $result['imported']++;
+        }
+    }
+
+    // ── Import HTML (Netscape Bookmark Format — Firefox / Chrome / Safari) ────
+
+    /**
+     * Parse and import a Netscape Bookmark HTML file.
+     * Folder hierarchy is preserved as KT-Start folders within the target list.
+     *
+     * @return array{imported: int, folders_created: int, skipped: int, errors: string[]}
+     */
+    public function importHtml(string $html, int $userId, int $listId): array
+    {
+        $result = [
+            'imported'        => 0,
+            'folders_created' => 0,
+            'skipped'         => 0,
+            'errors'          => [],
+        ];
+
+        $folderRepo = new FolderRepository();
+        $bmRepo     = new BookmarkRepository();
+
+        // Stack: each entry is ['id' => ?int folderId, 'pos' => int nextPosition]
+        $stack   = [['id' => null, 'pos' => 0]];
+        $pending = null;  // folder name from <H3>, waiting for the following <DL>
+        $lastId  = null;  // last inserted bookmark ID (for <DD> description pairing)
+
+        // Split HTML into tag-prefixed segments (each part begins after a '<')
+        $parts = preg_split('/</s', $html, -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($parts as $part) {
+            $gtPos = strpos($part, '>');
+            if ($gtPos === false) {
+                continue;
+            }
+
+            $rawTag  = substr($part, 0, $gtPos);
+            $rawText = substr($part, $gtPos + 1);
+
+            // Tag name: lowercase, first word (strip leading whitespace/slash for closing tags)
+            $tagLower = ltrim(strtolower($rawTag));
+            $tagName  = substr($tagLower, 0, strcspn($tagLower, " \t\n\r"));
+
+            switch ($tagName) {
+
+                case 'dl':
+                    if ($pending !== null) {
+                        $parent  = end($stack);
+                        $fid     = $folderRepo->create($userId, $listId, $parent['id'], $pending);
+                        $stack[] = ['id' => $fid, 'pos' => 0];
+                        $result['folders_created']++;
+                        $pending = null;
+                    } else {
+                        // Root DL or DL without a preceding H3 — stay in same folder context
+                        $top     = end($stack);
+                        $stack[] = ['id' => $top['id'], 'pos' => $top['pos']];
+                    }
+                    $lastId = null;
+                    break;
+
+                case '/dl':
+                    if (count($stack) > 1) {
+                        array_pop($stack);
+                    }
+                    $pending = null;
+                    $lastId  = null;
+                    break;
+
+                case 'h3':
+                    // Text content is the text immediately after <H3 ...> up to the next '<'
+                    $name    = trim(html_entity_decode($rawText, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    $pending = $name !== '' ? $name : 'Dossier';
+                    $lastId  = null;
+                    break;
+
+                case 'a':
+                    $href = '';
+                    if (preg_match('/\bhref\s*=\s*"([^"]*)"/i', $rawTag, $m)) {
+                        $href = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    } elseif (preg_match("/\\bhref\\s*=\\s*'([^']*)'/i", $rawTag, $m)) {
+                        $href = trim(html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    }
+
+                    // Skip non-http(s) entries (javascript:, place:, data:, …)
+                    if (!preg_match('~^https?://~i', $href)) {
+                        $result['skipped']++;
+                        $lastId = null;
+                        break;
+                    }
+
+                    $title = trim(html_entity_decode($rawText, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    if ($title === '') {
+                        $title = $href;
+                    }
+
+                    $addDate = null;
+                    if (preg_match('/\badd_date\s*=\s*"?(\d+)/i', $rawTag, $m)) {
+                        $addDate = (int) $m[1];
+                    }
+
+                    // TAGS attribute (Firefox only)
+                    $tags = '';
+                    if (preg_match('/\btags\s*=\s*"([^"]*)"/i', $rawTag, $m)) {
+                        $tags = trim($m[1]);
+                    }
+
+                    $createdAt = $addDate !== null
+                        ? date('Y-m-d H:i:s', $addDate)
+                        : date('Y-m-d H:i:s');
+
+                    $lastKey = array_key_last($stack);
+                    $top     = $stack[$lastKey];
+
+                    $lastId = $bmRepo->create([
+                        'url'         => $href,
+                        'host'        => (string) (parse_url($href, PHP_URL_HOST) ?? ''),
+                        'title'       => substr($title, 0, 500),
+                        'description' => '',
+                        'badge_style' => 'deepBlue',
+                        'badge_text'  => '',
+                        'tags'        => substr($tags, 0, 500),
+                        'visibility'  => 'private',
+                        'list_id'     => $listId,
+                        'folder_id'   => $top['id'],
+                        'user_id'     => $userId,
+                        'position'    => $top['pos'],
+                        'created_at'  => $createdAt,
+                    ]);
+
+                    $stack[$lastKey]['pos']++;
+                    $result['imported']++;
+                    break;
+
+                case 'dd':
+                    // Description immediately follows <DD> as plain text until the next tag
+                    if ($lastId !== null) {
+                        $desc = trim(html_entity_decode($rawText, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                        if ($desc !== '') {
+                            $bmRepo->update($lastId, ['description' => substr($desc, 0, 2000)]);
+                        }
+                    }
+                    // A DD belongs to one bookmark only — reset to prevent duplication
+                    $lastId = null;
+                    break;
+            }
+        }
+
+        return $result;
+    }
+
+    // ── Import JSON Firefox (backup interne text/x-moz-place) ────────────────
+
+    /**
+     * @return array{imported: int, folders_created: int, skipped: int, errors: string[]}
+     */
+    public function importFirefoxJson(array $root, int $userId, int $listId): array
+    {
+        $result = [
+            'imported'        => 0,
+            'folders_created' => 0,
+            'skipped'         => 0,
+            'errors'          => [],
+        ];
+
+        $pos = 0;
+        $this->processFirefoxNode($root, $userId, $listId, null, $pos, $result);
+
+        return $result;
+    }
+
+    private function processFirefoxNode(
+        array $node, int $userId, int $listId,
+        ?int $parentFolderId, int &$position, array &$result
+    ): void {
+        $type = $node['type'] ?? '';
+
+        if ($type === 'text/x-moz-place-separator') {
+            return;
+        }
+
+        if ($type === 'text/x-moz-place-container') {
+            $title    = trim($node['title'] ?? '');
+            $children = $node['children'] ?? [];
+
+            if (empty($children)) {
+                return;
+            }
+
+            $folderId = null;
+            if ($title !== '') {
+                $folderId = (new FolderRepository())->create($userId, $listId, $parentFolderId, $title);
+                $result['folders_created']++;
+            }
+
+            $childPos = 0;
+            foreach ($children as $child) {
+                if (is_array($child)) {
+                    $this->processFirefoxNode($child, $userId, $listId, $folderId ?? $parentFolderId, $childPos, $result);
+                }
+            }
+            return;
+        }
+
+        if ($type === 'text/x-moz-place') {
+            $uri = trim($node['uri'] ?? '');
+            if (!preg_match('~^https?://~i', $uri)) {
+                $result['skipped']++;
+                return;
+            }
+
+            $title = substr(trim($node['title'] ?? '') ?: $uri, 0, 500);
+
+            // dateAdded is in microseconds
+            $dateAdded = isset($node['dateAdded']) ? (int) ($node['dateAdded'] / 1_000_000) : null;
+            $createdAt = $dateAdded !== null
+                ? date('Y-m-d H:i:s', $dateAdded)
+                : date('Y-m-d H:i:s');
+
+            $tags = '';
+            if (!empty($node['tags'])) {
+                $tags = substr(trim((string) $node['tags']), 0, 500);
+            }
+
+            // Description stored in annotations
+            $description = '';
+            foreach ($node['annos'] ?? [] as $anno) {
+                if (is_array($anno) && ($anno['name'] ?? '') === 'bookmarkProperties/description') {
+                    $description = substr(trim((string) ($anno['value'] ?? '')), 0, 2000);
+                    break;
+                }
+            }
+
+            (new BookmarkRepository())->create([
+                'url'         => $uri,
+                'host'        => (string) (parse_url($uri, PHP_URL_HOST) ?? ''),
+                'title'       => $title,
+                'description' => $description,
+                'badge_style' => 'deepBlue',
+                'badge_text'  => '',
+                'tags'        => $tags,
+                'visibility'  => 'private',
+                'list_id'     => $listId,
+                'folder_id'   => $parentFolderId,
+                'user_id'     => $userId,
+                'position'    => $position,
+                'created_at'  => $createdAt,
+            ]);
+
+            $position++;
             $result['imported']++;
         }
     }

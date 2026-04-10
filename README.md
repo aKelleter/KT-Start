@@ -87,7 +87,7 @@ L'interface d'administration est organisée en 9 sous-pages indépendantes acces
 - **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
 - **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
-- **Sauvegarde** : export/import JSON avec trois scénarios (voir ci-dessous)
+- **Sauvegarde** : export/import JSON avec trois scénarios + import depuis navigateur (voir ci-dessous)
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
 
 ### Sauvegarde et restauration
@@ -97,11 +97,17 @@ L'interface d'administration est organisée en 9 sous-pages indépendantes acces
 | **Backup complet** | `ktstart-backup-YYYYMMDD-HHmmss.json` | users + settings + lists (avec liste par défaut) + bookmarks (tous utilisateurs) |
 | **Export favoris** | `ktstart-bookmarks-YYYYMMDD-HHmmss.json` | lists + bookmarks (utilisateur courant) — portable entre instances |
 
-**Import** (détection automatique du format v1/v2) :
+**Import JSON KT-Start** (détection automatique du format v1/v2) :
 
 - **Export favoris (v1)** : supprime les bookmarks et listes existants, réinitialise les séquences, réinsère les listes puis les bookmarks
 - **Backup complet (v2) — import normal** : crée les users/listes manquants (skip si existant), upsert les settings, ajoute les bookmarks
 - **Backup complet (v2) — Restauration complète** : purge toutes les tables, réinitialise les séquences, réinsère tout — session détruite, reconnexion requise
+
+**Import depuis un navigateur** (détection automatique du format) :
+
+- **HTML Netscape** (Firefox › Tout afficher › Exporter en HTML ; Chrome/Safari/Edge) : parser séquentiel tokenisé, préserve la hiérarchie de dossiers, titre, URL, description (`<DD>`), tags Firefox (`TAGS`), date `ADD_DATE`
+- **JSON Firefox** (Firefox › Tout afficher › Sauvegarder…) : parcours récursif du graphe `text/x-moz-place-container` / `text/x-moz-place`, description depuis les annotations, date en microsecondes
+- Les dossiers du navigateur sont recréés comme dossiers KT-Start dans la liste cible (existante ou nouvelle)
 
 ### Vérification des liens
 
@@ -271,7 +277,7 @@ KT-Start/
 │   │   ├── StatsRepository.php         # overview, perUser, perList, perLinkStatus, topTags, perMonth, perBadgeStyle
 │   │   └── UserRepository.php          # CRUD utilisateurs
 │   └── Service/
-│       ├── ImportExportService.php     # Export v1/v2, import avec détection auto, restauration complète
+│       ├── ImportExportService.php     # Export v1/v2, import JSON avec détection auto, restauration complète, import HTML Netscape, import JSON Firefox
 │       ├── MigrationService.php        # Migrations idempotentes
 │       ├── UrlCheckService.php         # Vérification accessibilité URL (HEAD/GET, proxy)
 │       └── UrlMetaService.php          # curl + DOMDocument → title/host/description
@@ -365,7 +371,8 @@ KT-Start/
 | `admin_tags_cleanup` | POST | Admin | Supprimer les tags utilisés une seule fois |
 | `admin_export` | GET | Admin | Télécharger l'export favoris (v1) |
 | `admin_export_full` | GET | Admin | Télécharger le backup complet (v2) |
-| `admin_import` | POST | Admin | Importer un fichier JSON (v1 ou v2) |
+| `admin_import` | POST | Admin | Importer un fichier JSON KT-Start (v1 ou v2) |
+| `admin_import_html` | POST | Admin | Importer des favoris depuis un navigateur (HTML Netscape ou JSON Firefox) |
 
 ---
 
@@ -373,4 +380,3 @@ KT-Start/
 
 - Notifications de favoris expirés ou inaccessibles
 - Rôle `editor` (multi-utilisateurs sans accès admin)
-- Import de favoris au format HTML (Netscape bookmarks)

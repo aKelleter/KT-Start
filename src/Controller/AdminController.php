@@ -80,12 +80,15 @@ final class AdminController
     public function backupPage(): void
     {
         $this->requireAdmin();
-        $importResult = $_SESSION['_import_result'] ?? null;
-        unset($_SESSION['_import_result']);
+        $importResult     = $_SESSION['_import_result'] ?? null;
+        $importHtmlResult = $_SESSION['_import_html_result'] ?? null;
+        unset($_SESSION['_import_result'], $_SESSION['_import_html_result']);
         View::render('admin/backup', [
-            'csrf'         => Csrf::token(),
-            'flash'        => Flash::get(),
-            'importResult' => $importResult,
+            'csrf'             => Csrf::token(),
+            'flash'            => Flash::get(),
+            'importResult'     => $importResult,
+            'importHtmlResult' => $importHtmlResult,
+            'lists'            => (new ListRepository())->findAll(),
         ]);
     }
 
@@ -317,6 +320,73 @@ final class AdminController
         }
 
         $_SESSION['_import_result'] = $result;
+        Response::redirect('?action=admin_backup');
+    }
+
+    public function importHtmlBookmarks(): void
+    {
+        $this->requireAdmin();
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect('?action=admin_backup');
+        }
+
+        $file = $_FILES['import_html_file'] ?? null;
+
+        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
+            Flash::set('danger', 'Aucun fichier reçu ou erreur lors de l\'upload.');
+            Response::redirect('?action=admin_backup');
+        }
+
+        if ($file['size'] > 20 * 1024 * 1024) {
+            Flash::set('danger', 'Fichier trop volumineux (20 Mo max).');
+            Response::redirect('?action=admin_backup');
+        }
+
+        $content = file_get_contents($file['tmp_name']);
+        if ($content === false) {
+            Flash::set('danger', 'Impossible de lire le fichier.');
+            Response::redirect('?action=admin_backup');
+        }
+
+        // Detect format: Firefox JSON backup or Netscape HTML
+        $firefoxData = null;
+        $decoded     = json_decode($content, true);
+        if (is_array($decoded) && str_starts_with((string) ($decoded['type'] ?? ''), 'text/x-moz-place')) {
+            $firefoxData = $decoded;
+        } elseif (stripos($content, 'NETSCAPE-Bookmark-file') === false) {
+            Flash::set('danger', 'Format non reconnu. Attendu : fichier HTML (Firefox/Chrome/Safari) ou backup JSON Firefox.');
+            Response::redirect('?action=admin_backup');
+        }
+
+        // Resolve target list
+        $listRepo   = new ListRepository();
+        $listChoice = $_POST['html_list_choice'] ?? 'existing';
+        $listId     = null;
+
+        if ($listChoice === 'new') {
+            $newName = trim((string) ($_POST['html_new_list_name'] ?? ''));
+            if ($newName === '') {
+                Flash::set('danger', 'Le nom de la nouvelle liste ne peut pas être vide.');
+                Response::redirect('?action=admin_backup');
+            }
+            $existing = $listRepo->findByName($newName);
+            $listId   = $existing ? (int) $existing['id'] : $listRepo->create($newName);
+        } else {
+            $listId = (int) ($_POST['html_list_id'] ?? 0);
+            if ($listId <= 0) {
+                Flash::set('danger', 'Veuillez sélectionner une liste valide.');
+                Response::redirect('?action=admin_backup');
+            }
+        }
+
+        $svc    = new ImportExportService();
+        $result = $firefoxData !== null
+            ? $svc->importFirefoxJson($firefoxData, Auth::id(), $listId)
+            : $svc->importHtml($content, Auth::id(), $listId);
+
+        $_SESSION['_import_html_result'] = $result;
         Response::redirect('?action=admin_backup');
     }
 

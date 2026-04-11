@@ -344,7 +344,7 @@ final class BookmarkController
 
         $check = UrlCheckService::check($bm['url']);
         $now   = date('Y-m-d H:i:s');
-        $repo->updateCheckStatus($id, $check['status'], $now);
+        $repo->updateCheckStatus($id, $check['status'], $now, $check['http_code']);
 
         echo json_encode([
             'ok'         => true,
@@ -366,6 +366,33 @@ final class BookmarkController
 
         Flash::set('success', "Statut de vérification réinitialisé ($count favori(s)).");
         Response::redirect('?action=bookmark_links_report');
+    }
+
+    public function toggleCheckSkip(): void
+    {
+        header('Content-Type: application/json');
+
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return;
+        }
+
+        $id     = (int) ($_POST['id'] ?? 0);
+        $userId = (int) Auth::id();
+        $repo   = new BookmarkRepository();
+        $bm     = $repo->findById($id);
+
+        if (!$bm || (int) $bm['user_id'] !== $userId) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Favori introuvable']);
+            return;
+        }
+
+        $newSkip = ((int) ($bm['check_skip'] ?? 0)) === 0 ? 1 : 0;
+        $repo->updateCheckSkip($id, $newSkip === 1);
+
+        echo json_encode(['ok' => true, 'skip' => $newSkip]);
     }
 
     public function followRedirect(): void

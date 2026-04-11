@@ -338,7 +338,7 @@ final class BookmarkRepository
     public function findAllByUser(int $userId): array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT id, url, title, host, last_check_status, last_check_at FROM bookmarks WHERE user_id = :user_id ORDER BY position ASC, created_at DESC'
+            'SELECT id, url, title, host, last_check_status, last_check_at, last_http_code, check_skip FROM bookmarks WHERE user_id = :user_id ORDER BY position ASC, created_at DESC'
         );
         $stmt->execute(['user_id' => $userId]);
         return $stmt->fetchAll();
@@ -370,12 +370,20 @@ final class BookmarkRepository
     }
 
     /** Met à jour le statut de vérification d'un favori. */
-    public function updateCheckStatus(int $id, string $status, string $checkedAt): void
+    public function updateCheckStatus(int $id, string $status, string $checkedAt, int $httpCode = 0): void
     {
         $stmt = Database::connection()->prepare(
-            'UPDATE bookmarks SET last_check_status = :status, last_check_at = :checked_at WHERE id = :id'
+            'UPDATE bookmarks SET last_check_status = :status, last_check_at = :checked_at, last_http_code = :http_code WHERE id = :id'
         );
-        $stmt->execute(['status' => $status, 'checked_at' => $checkedAt, 'id' => $id]);
+        $stmt->execute(['status' => $status, 'checked_at' => $checkedAt, 'http_code' => $httpCode ?: null, 'id' => $id]);
+    }
+
+    public function updateCheckSkip(int $id, bool $skip): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE bookmarks SET check_skip = :skip WHERE id = :id'
+        );
+        $stmt->execute(['skip' => $skip ? 1 : 0, 'id' => $id]);
     }
 
     /** Remet à zéro le statut de vérification de tous les favoris d'un utilisateur. */

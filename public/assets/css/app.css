@@ -1024,6 +1024,15 @@ html[data-list-nav="dropdown"] #ks-list-filter-dropdown { display: block !import
     background: rgba(0, 0, 0, .02);
 }
 
+/* ── Vérification des liens ──────────────────────────────────────────────── */
+
+/* Barres d'action fixes (liens morts / redirects) */
+.ks-actions-bar {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+}
+.ks-actions-bar--danger  { background: #fff5f5; }
+.ks-actions-bar--warning { background: #fffdf0; }
+
 /* ── Login ───────────────────────────────────────────────────────────────── */
 .app-login-wrap {
     min-height: calc(100vh - var(--app-header-height) - var(--app-footer-height));
@@ -1305,6 +1314,31 @@ td .ks-link-dot {
 
 [data-theme="dark"] .ks-admin-nav-card:hover {
     box-shadow: 0 4px 18px rgba(2, 136, 209, 0.18);
+}
+
+/* ── Mode sombre — vérification des liens ────────────────────────────────── */
+
+/* Barres d'action fixes */
+[data-theme="dark"] .ks-actions-bar--danger  { background: #2d1a1c; }
+[data-theme="dark"] .ks-actions-bar--warning { background: #2a2310; }
+
+/* Lignes de tableau colorées */
+[data-theme="dark"] .ks-table tr.table-danger,
+[data-theme="dark"] .ks-table tr.table-danger td {
+    --bs-table-bg: rgba(220, 53, 69, .18);
+    --bs-table-color: inherit;
+    background-color: rgba(220, 53, 69, .18);
+}
+[data-theme="dark"] .ks-table tr.table-warning,
+[data-theme="dark"] .ks-table tr.table-warning td {
+    --bs-table-bg: rgba(255, 193, 7, .12);
+    --bs-table-color: inherit;
+    background-color: rgba(255, 193, 7, .12);
+}
+
+/* En-tête de section dans la table */
+[data-theme="dark"] .ks-table thead.table-light th {
+    background: #333740;
 }
 
 /* Statistiques : cards résumé */

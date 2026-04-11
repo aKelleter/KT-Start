@@ -90,7 +90,9 @@ final class MigrationService
                     position    INTEGER DEFAULT 0,
                     created_at  TEXT NOT NULL,
                     last_check_status TEXT,
-                    last_check_at TEXT
+                    last_check_at     TEXT,
+                    last_http_code    INTEGER,
+                    check_skip        INTEGER NOT NULL DEFAULT 0
                 )
             ",
             'columns' => [
@@ -106,6 +108,8 @@ final class MigrationService
                 'position'          => 'ALTER TABLE bookmarks ADD COLUMN position INTEGER DEFAULT 0',
                 'last_check_status' => 'ALTER TABLE bookmarks ADD COLUMN last_check_status TEXT',
                 'last_check_at'     => 'ALTER TABLE bookmarks ADD COLUMN last_check_at TEXT',
+                'last_http_code'    => 'ALTER TABLE bookmarks ADD COLUMN last_http_code INTEGER',
+                'check_skip'        => 'ALTER TABLE bookmarks ADD COLUMN check_skip INTEGER NOT NULL DEFAULT 0',
             ],
         ],
     ];

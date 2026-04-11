@@ -115,13 +115,16 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 
 - Vérifie chaque URL une par une via cURL (HEAD, fallback GET si 405)
 - Statuts : **OK** (2xx), **Redirigé** (301), **Inaccessible** (4xx/5xx), **Timeout** (erreur réseau)
+- Affichage du **code HTTP réel** dans une colonne dédiée — label "Timeout" si aucun code n'a été reçu
 - Indicateurs visuels colorés sur les 4 vues (badges, tableau, liste, explorateur) — point en bas à droite du badge coloré
 - Page rapport groupée par statut avec barre de progression en temps réel
+- **Recheck individuel** (↺) sur chaque lien inaccessible ou timeout — vérifie à nouveau sans relancer toute la liste
 - **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
 - Suppression en lot des liens morts (inaccessibles et timeouts)
-- Barres d'action fixes (rouge pour les morts, jaune pour les redirigés) — flottent au-dessus du footer avec fond opaque
+- Barres d'action fixes (rouge pour les morts, jaune pour les redirigés) — flottent au-dessus du footer avec fond opaque, compatible mode sombre
 - Bouton **Continuer** (reprend les liens non vérifiés) ou **Revérifier tout** — bouton **Stop** pour interrompre
 - Réinitialisation des statuts en un clic
+- **Exclusion de la vérification** — bouton ⊘ sur chaque ligne pour exclure un favori (raccourcis internes, liens bot-protégés, etc.) ; section dédiée "Exclus de la vérification" en bas du rapport avec bouton ↺ pour réintégrer ; les favoris exclus ne sont pas comptabilisés dans le total
 - Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
 
 ---
@@ -338,6 +341,7 @@ KT-Start/
 | `bookmark_reset_status` | POST | Auth | Réinitialiser tous les statuts |
 | `bookmark_delete_dead` | POST | Auth | Supprimer les favoris morts sélectionnés |
 | `bookmark_follow_redirect` | POST | Auth | Mettre à jour l'URL finale d'un favori redirigé (JSON) |
+| `bookmark_toggle_skip` | POST | Auth | Exclure / réintégrer un favori de la vérification (JSON) |
 | `bookmark_folder_store` | POST | Auth | Créer un dossier dans une liste |
 | `bookmark_folder_rename` | POST | Auth | Renommer un dossier |
 | `bookmark_folder_delete` | POST | Auth | Supprimer un dossier (remonte les enfants) |

@@ -6,9 +6,14 @@ use App\Core\View;
 /** @var string $csrf */
 /** @var array|null $flash */
 
-// Grouper par statut
-$byStatus = ['error' => [], 'redirect' => [], 'timeout' => [], 'ok' => [], '' => []];
+// Grouper par statut (les exclus sont mis de côté)
+$byStatus  = ['error' => [], 'redirect' => [], 'timeout' => [], 'ok' => [], '' => []];
+$skipped   = [];
 foreach ($bookmarks as $bm) {
+    if (!empty($bm['check_skip'])) {
+        $skipped[] = $bm;
+        continue;
+    }
     $s = (string) ($bm['last_check_status'] ?? '');
     if (!array_key_exists($s, $byStatus)) {
         $s = '';
@@ -19,7 +24,7 @@ foreach ($bookmarks as $bm) {
 $deadCount     = count($byStatus['error']) + count($byStatus['timeout']);
 $redirectCount = count($byStatus['redirect']);
 $neverChecked  = count($byStatus['']);
-$total         = count($bookmarks);
+$total         = count($bookmarks) - count($skipped);
 ?>
 
 <?php if (!empty($flash)): ?>
@@ -153,6 +158,7 @@ $total         = count($bookmarks);
                         <th>Titre / URL</th>
                         <th style="width:100px">Code HTTP</th>
                         <th style="width:140px">Vérifié le</th>
+                        <th style="width:68px"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -178,13 +184,32 @@ $total         = count($bookmarks);
                         </td>
                         <td class="ks-http-code" data-id="<?= $bm['id'] ?>">
                             <?php if ($bm['last_check_status']): ?>
-                                <span class="badge <?= $statusKey === 'ok' ? 'text-bg-success' : ($statusKey === 'redirect' ? 'text-bg-warning' : 'text-bg-danger') ?>">
-                                    —
-                                </span>
+                                <?php $badgeCls = $statusKey === 'ok' ? 'text-bg-success' : ($statusKey === 'redirect' ? 'text-bg-warning' : 'text-bg-danger'); ?>
+                                <?php
+                                    $code    = (int) ($bm['last_http_code'] ?? 0);
+                                    $display = $code > 0 ? $code : ($statusKey === 'timeout' ? 'Timeout' : '—');
+                                ?>
+                                <span class="badge <?= $badgeCls ?>"><?= $display ?></span>
                             <?php endif; ?>
                         </td>
                         <td class="text-muted small ks-checked-at" data-id="<?= $bm['id'] ?>">
                             <?= $bm['last_check_at'] ? View::e(substr($bm['last_check_at'], 0, 16)) : '—' ?>
+                        </td>
+                        <td class="text-nowrap">
+                            <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary ks-recheck-btn p-1 lh-1 me-1"
+                                    data-id="<?= $bm['id'] ?>"
+                                    title="Revérifier ce lien">
+                                <i class="bi bi-arrow-repeat" style="font-size:.85rem"></i>
+                            </button>
+                            <?php endif; ?>
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary ks-skip-btn p-1 lh-1"
+                                    data-id="<?= $bm['id'] ?>"
+                                    title="Exclure de la vérification">
+                                <i class="bi bi-slash-circle" style="font-size:.85rem"></i>
+                            </button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -194,8 +219,8 @@ $total         = count($bookmarks);
     <?php endforeach; ?>
 
     <!-- Bouton suppression en lot -->
-    <div id="deadActionsBar" class="d-none p-3 border border-danger rounded d-flex align-items-center gap-3"
-         style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025;background:#fff5f5;box-shadow:0 4px 16px rgba(220,53,69,.25)">
+    <div id="deadActionsBar" class="d-none p-3 border border-danger rounded d-flex align-items-center gap-3 ks-actions-bar ks-actions-bar--danger"
+         style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025">
         <span class="text-danger fw-semibold">
             <i class="bi bi-trash me-1"></i>
             <span id="selectedCount">0</span> favori(s) sélectionné(s)
@@ -210,9 +235,74 @@ $total         = count($bookmarks);
     </div>
 </form>
 
+<!-- Section Exclus de la vérification -->
+<?php if (!empty($skipped)): ?>
+<h6 class="mt-4 mb-2 text-secondary">
+    <i class="bi bi-slash-circle me-1"></i>Exclus de la vérification (<?= count($skipped) ?>)
+</h6>
+<div class="table-responsive mb-3">
+    <table class="table table-sm align-middle ks-table">
+        <thead class="table-light">
+            <tr>
+                <th style="width:36px"></th>
+                <th>Titre / URL</th>
+                <th style="width:100px">Dernier statut</th>
+                <th style="width:140px">Vérifié le</th>
+                <th style="width:68px"></th>
+            </tr>
+        </thead>
+        <tbody>
+        <?php foreach ($skipped as $bm): ?>
+            <tr data-id="<?= $bm['id'] ?>" data-status="skip" data-skip="1">
+                <td></td>
+                <td>
+                    <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
+                       class="fw-semibold text-decoration-none text-body">
+                        <?= View::e($bm['title'] ?: $bm['host'] ?: $bm['url']) ?>
+                    </a>
+                    <div class="text-muted small text-truncate" style="max-width:400px">
+                        <?= View::e($bm['url']) ?>
+                    </div>
+                </td>
+                <td>
+                    <?php if ($bm['last_check_status']): ?>
+                    <?php
+                        $skippedStatusCls = match($bm['last_check_status']) {
+                            'ok'       => 'text-bg-success',
+                            'redirect' => 'text-bg-warning',
+                            default    => 'text-bg-secondary',
+                        };
+                        $skippedCode = (int)($bm['last_http_code'] ?? 0);
+                        $skippedDisplay = $skippedCode > 0 ? $skippedCode
+                            : ($bm['last_check_status'] === 'timeout' ? 'Timeout' : $bm['last_check_status']);
+                    ?>
+                    <span class="badge <?= $skippedStatusCls ?>"><?= View::e((string)$skippedDisplay) ?></span>
+                    <?php else: ?>
+                    <span class="text-muted small">—</span>
+                    <?php endif; ?>
+                </td>
+                <td class="text-muted small">
+                    <?= $bm['last_check_at'] ? View::e(substr($bm['last_check_at'], 0, 16)) : '—' ?>
+                </td>
+                <td>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary ks-skip-btn p-1 lh-1"
+                            data-id="<?= $bm['id'] ?>"
+                            data-skip="1"
+                            title="Réintégrer à la vérification">
+                        <i class="bi bi-arrow-counterclockwise" style="font-size:.85rem"></i>
+                    </button>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+<?php endif; ?>
+
 <!-- Barre mise à jour redirects -->
-<div id="redirectActionsBar" class="d-none p-3 border border-warning rounded d-flex align-items-center gap-3"
-     style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025;background:#fffdf0;box-shadow:0 4px 16px rgba(255,193,7,.25)">
+<div id="redirectActionsBar" class="d-none p-3 border border-warning rounded d-flex align-items-center gap-3 ks-actions-bar ks-actions-bar--warning"
+     style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025">
     <span class="text-warning-emphasis fw-semibold">
         <i class="bi bi-arrow-right-circle me-1"></i>
         <span id="redirectSelectedCount">0</span> lien(s) redirigé(s) sélectionné(s)
@@ -291,7 +381,8 @@ $total         = count($bookmarks);
                     : (data.status === 'redirect' ? 'text-bg-warning' : 'text-bg-danger');
 
                 document.querySelectorAll(`.ks-http-code[data-id="${id}"]`).forEach(el => {
-                    el.innerHTML = `<span class="badge ${cls}">${data.http_code || '—'}</span>`;
+                    const label = data.http_code > 0 ? data.http_code : (data.status === 'timeout' ? 'Timeout' : '—');
+                    el.innerHTML = `<span class="badge ${cls}">${label}</span>`;
                 });
                 document.querySelectorAll(`.ks-checked-at[data-id="${id}"]`).forEach(el => {
                     el.textContent = data.checked_at.substring(0, 16);
@@ -307,21 +398,114 @@ $total         = count($bookmarks);
         checkNext(rest, done + 1);
     }
 
-    function updateProgress(done) {
-        const pct     = Math.round(done / total * 100);
-        const pending = getPendingIds().length;
-        document.getElementById('progressBar').style.width  = pct + '%';
-        document.getElementById('progressLabel').textContent = `${done} / ${total}`;
-        document.getElementById('countUnchecked').textContent = pending;
-
-        // Compteurs ok/dead/redirect depuis le DOM
+    // ── Mise à jour des compteurs résumé ────────────────────────────────────
+    function syncCounters() {
         const rows = Array.from(document.querySelectorAll('tr[data-id]'));
         const st   = { ok: 0, error: 0, timeout: 0, redirect: 0 };
         rows.forEach(tr => { if (st[tr.dataset.status] !== undefined) st[tr.dataset.status]++; });
-        document.getElementById('countOk').textContent       = st.ok;
-        document.getElementById('countDead').textContent     = st.error + st.timeout;
-        document.getElementById('countRedirect').textContent = st.redirect;
+        document.getElementById('countOk').textContent        = st.ok;
+        document.getElementById('countDead').textContent      = st.error + st.timeout;
+        document.getElementById('countRedirect').textContent  = st.redirect;
+        document.getElementById('countUnchecked').textContent = getPendingIds().length;
     }
+
+    function updateProgress(done) {
+        const pct = Math.round(done / total * 100);
+        document.getElementById('progressBar').style.width   = pct + '%';
+        document.getElementById('progressLabel').textContent = `${done} / ${total}`;
+        syncCounters();
+    }
+
+    // ── Recheck individuel (bouton ↺ sur chaque ligne morte/timeout) ─────────
+    document.querySelectorAll('.ks-recheck-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const id  = this.dataset.id;
+            const row = document.querySelector(`tr[data-id="${id}"]`);
+
+            // Spinner pendant la vérification
+            this.innerHTML  = '<span class="spinner-border spinner-border-sm" style="width:.75rem;height:.75rem"></span>';
+            this.disabled   = true;
+
+            const fd = new FormData();
+            fd.append('_csrf', csrf);
+            fd.append('id', id);
+
+            try {
+                const r    = await fetch('?action=bookmark_check_single', { method: 'POST', body: fd });
+                const data = await r.json();
+
+                if (data.ok) {
+                    const cls   = data.status === 'ok' ? 'text-bg-success'
+                                : data.status === 'redirect' ? 'text-bg-warning'
+                                : 'text-bg-danger';
+                    const label = data.http_code > 0 ? data.http_code
+                                : (data.status === 'timeout' ? 'Timeout' : '—');
+
+                    document.querySelectorAll(`.ks-http-code[data-id="${id}"]`).forEach(el => {
+                        el.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+                    });
+                    document.querySelectorAll(`.ks-checked-at[data-id="${id}"]`).forEach(el => {
+                        el.textContent = data.checked_at.substring(0, 16);
+                    });
+                    if (row) row.dataset.status = data.status;
+
+                    if (data.status === 'ok' || data.status === 'redirect') {
+                        // Lien rétabli — icône checkmark, bouton désactivé
+                        this.innerHTML = '<i class="bi bi-check-lg text-success" style="font-size:.85rem"></i>';
+                        this.classList.replace('btn-outline-secondary', 'btn-link');
+                        this.disabled = true;
+                    } else {
+                        // Toujours en erreur — restaurer l'icône
+                        this.innerHTML = '<i class="bi bi-arrow-repeat" style="font-size:.85rem"></i>';
+                        this.disabled  = false;
+                    }
+
+                    syncCounters();
+                } else {
+                    this.innerHTML = '<i class="bi bi-arrow-repeat" style="font-size:.85rem"></i>';
+                    this.disabled  = false;
+                }
+            } catch {
+                this.innerHTML = '<i class="bi bi-arrow-repeat" style="font-size:.85rem"></i>';
+                this.disabled  = false;
+            }
+        });
+    });
+
+    // ── Exclure / Réintégrer un lien (bouton ⊘ / ↺) ─────────────────────────
+    document.querySelectorAll('.ks-skip-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const id      = this.dataset.id;
+            const skipping = this.dataset.skip !== '1'; // boutons sans data-skip="1" → on veut exclure
+
+            this.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:.75rem;height:.75rem"></span>';
+            this.disabled  = true;
+
+            const fd = new FormData();
+            fd.append('_csrf', csrf);
+            fd.append('id', id);
+
+            try {
+                const r    = await fetch('?action=bookmark_toggle_skip', { method: 'POST', body: fd });
+                const data = await r.json();
+
+                if (data.ok) {
+                    // Recharger pour regrouper proprement (exclu ↔ actif)
+                    location.reload();
+                } else {
+                    this.innerHTML = skipping
+                        ? '<i class="bi bi-slash-circle" style="font-size:.85rem"></i>'
+                        : '<i class="bi bi-arrow-counterclockwise" style="font-size:.85rem"></i>';
+                    this.disabled = false;
+                }
+            } catch {
+                this.innerHTML = skipping
+                    ? '<i class="bi bi-slash-circle" style="font-size:.85rem"></i>'
+                    : '<i class="bi bi-arrow-counterclockwise" style="font-size:.85rem"></i>';
+                this.disabled = false;
+            }
+        });
+    });
 
     function onRunEnd(completed) {
         isRunning = false;

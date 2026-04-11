@@ -383,4 +383,3 @@ KT-Start/
 ## Pistes d'évolution
 
 - Notifications de favoris expirés ou inaccessibles
-- Rôle `editor` (multi-utilisateurs sans accès admin)

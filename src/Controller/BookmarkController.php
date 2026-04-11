@@ -69,6 +69,7 @@ final class BookmarkController
             'lists'        => $listRepo->findAll(),
             'bookmarks'    => $bookmarkRepo->findPublic($listId, $tag ?: null, $sort, $search ?: null, self::showAll() ? PHP_INT_MAX : self::perPage(), $offset),
             'allTags'      => [],
+            'allFolders'   => [],
             'folders'      => $folders,
             'foldersByParent'   => $foldersByParent,
             'bookmarksByFolder' => $bookmarksByFolder,

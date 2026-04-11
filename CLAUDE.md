@@ -262,4 +262,3 @@ Fichier : `public/assets/css/app.css`
 - ~~Sous-dossiers dans les vues badges/tableau/liste~~ ✓ implémenté
 - ~~Gestion des dossiers dans l'administration~~ ✓ implémenté
 - ~~Import de favoris au format HTML (Netscape bookmarks)~~ ✓ implémenté
-- Rôle `editor` (multi-utilisateurs sans accès admin)

@@ -120,11 +120,16 @@ Accessible depuis la vue favoris (icône lien dans la barre d'outils) :
 - Page rapport groupée par statut avec barre de progression en temps réel
 - **Recheck individuel** (↺) sur chaque lien inaccessible ou timeout — vérifie à nouveau sans relancer toute la liste
 - **Mise à jour des URLs redirigées** : suit le 301 jusqu'à l'URL finale et met à jour le favori en base
-- Suppression en lot des liens morts (inaccessibles et timeouts)
-- Barres d'action fixes (rouge pour les morts, jaune pour les redirigés) — flottent au-dessus du footer avec fond opaque, compatible mode sombre
+- **Actions en lot** via cases à cocher par section, avec icônes dans les en-têtes de colonnes :
+  - 🗑️ **Suppression** des liens morts (inaccessibles et timeouts)
+  - ↺ **Revérification** des liens morts sélectionnés — même logique que le recheck individuel, sur une sélection
+  - ⊘ **Exclusion** de la vérification — disponible sur toutes les sections actives
+  - ↗️ **Mise à jour des URLs** — pour les liens redirigés sélectionnés
+- Panneaux d'action flottants style iOS/macOS — centrés sur la page, largeur adaptative, boutons séparés par ligne fine
+- Confirmations destructives via modales Bootstrap style iOS (titre centré, sous-titre, Annuler / Action) — plus de `confirm()` navigateur
 - Bouton **Continuer** (reprend les liens non vérifiés) ou **Revérifier tout** — bouton **Stop** pour interrompre
-- Réinitialisation des statuts en un clic
-- **Exclusion de la vérification** — bouton ⊘ sur chaque ligne pour exclure un favori (raccourcis internes, liens bot-protégés, etc.) ; section dédiée "Exclus de la vérification" en bas du rapport avec bouton ↺ pour réintégrer ; les favoris exclus ne sont pas comptabilisés dans le total
+- Réinitialisation des statuts en un clic (avec confirmation modale)
+- **Exclusion de la vérification** — bouton ⊘ individuel sur chaque ligne, ou en lot via la case à cocher dédiée ; section "Exclus de la vérification" en bas du rapport avec bouton ↺ pour réintégrer ; les favoris exclus ne sont pas comptabilisés dans le total
 - Support proxy HTTP configurable depuis **Admin → Paramètres** (priorité DB → `.env` → vide)
 
 ---

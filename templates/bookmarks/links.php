@@ -66,10 +66,9 @@ $total         = count($bookmarks) - count($skipped);
             <i class="bi bi-stop-fill me-1"></i>Arrêter
         </button>
 
-        <form method="post" action="?action=bookmark_reset_status" class="d-inline"
-              onsubmit="return confirm('Réinitialiser tous les statuts de vérification ?')">
+        <form method="post" action="?action=bookmark_reset_status" class="d-inline" id="resetStatusForm">
             <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
-            <button type="submit" class="btn btn-outline-secondary" title="Réinitialiser les statuts">
+            <button type="button" class="btn btn-outline-secondary" id="btnResetStatus" title="Réinitialiser les statuts">
                 <i class="bi bi-x-circle me-1"></i>Réinitialiser
             </button>
         </form>
@@ -144,16 +143,51 @@ $total         = count($bookmarks) - count($skipped);
                 <thead class="table-light">
                     <tr>
                         <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
-                        <th style="width:36px">
-                            <input type="checkbox" class="form-check-input ks-check-section"
-                                   data-section="<?= $statusKey ?>">
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-trash text-danger" style="font-size:.7rem;opacity:.7" title="Supprimer"></i>
+                                <input type="checkbox" class="form-check-input ks-check-section"
+                                       data-section="<?= $statusKey ?>" title="Tout sélectionner pour suppression">
+                            </div>
+                        </th>
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-arrow-repeat text-primary" style="font-size:.7rem;opacity:.7" title="Revérifier"></i>
+                                <input type="checkbox" class="form-check-input ks-check-recheck-section"
+                                       title="Tout sélectionner pour revérification">
+                            </div>
+                        </th>
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-slash-circle text-secondary" style="font-size:.7rem;opacity:.7" title="Exclure"></i>
+                                <input type="checkbox" class="form-check-input ks-check-skip-section"
+                                       title="Tout sélectionner pour exclusion">
+                            </div>
                         </th>
                         <?php elseif ($statusKey === 'redirect'): ?>
-                        <th style="width:36px">
-                            <input type="checkbox" class="form-check-input ks-check-redirect-section">
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-arrow-right-circle text-warning" style="font-size:.7rem;opacity:.7" title="Mettre à jour l'URL"></i>
+                                <input type="checkbox" class="form-check-input ks-check-redirect-section"
+                                       title="Tout sélectionner pour mise à jour URL">
+                            </div>
+                        </th>
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-slash-circle text-secondary" style="font-size:.7rem;opacity:.7" title="Exclure"></i>
+                                <input type="checkbox" class="form-check-input ks-check-skip-section"
+                                       title="Tout sélectionner pour exclusion">
+                            </div>
                         </th>
                         <?php else: ?>
-                        <th style="width:36px"></th>
+                        <th style="width:32px"></th>
+                        <th style="width:32px" class="text-center">
+                            <div class="d-flex flex-column align-items-center gap-1">
+                                <i class="bi bi-slash-circle text-secondary" style="font-size:.7rem;opacity:.7" title="Exclure"></i>
+                                <input type="checkbox" class="form-check-input ks-check-skip-section"
+                                       title="Tout sélectionner pour exclusion">
+                            </div>
+                        </th>
                         <?php endif; ?>
                         <th>Titre / URL</th>
                         <th style="width:100px">Code HTTP</th>
@@ -164,15 +198,35 @@ $total         = count($bookmarks) - count($skipped);
                 <tbody>
                 <?php foreach ($rows as $bm): ?>
                     <tr class="<?= $sec['bg'] ?>" data-id="<?= $bm['id'] ?>" data-status="<?= View::e($bm['last_check_status'] ?? '') ?>">
-                        <td>
-                            <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
+                        <?php if (in_array($statusKey, ['error', 'timeout'], true)): ?>
+                        <td class="text-center">
                             <input type="checkbox" class="form-check-input ks-dead-check"
-                                   name="ids[]" value="<?= $bm['id'] ?>">
-                            <?php elseif ($statusKey === 'redirect'): ?>
-                            <input type="checkbox" class="form-check-input ks-redirect-check"
-                                   value="<?= $bm['id'] ?>">
-                            <?php endif; ?>
+                                   name="ids[]" value="<?= $bm['id'] ?>" title="Sélectionner pour suppression">
                         </td>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ks-recheck-check"
+                                   value="<?= $bm['id'] ?>" title="Sélectionner pour revérification">
+                        </td>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ks-skip-check"
+                                   value="<?= $bm['id'] ?>" title="Sélectionner pour exclusion">
+                        </td>
+                        <?php elseif ($statusKey === 'redirect'): ?>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ks-redirect-check"
+                                   value="<?= $bm['id'] ?>" title="Sélectionner pour mise à jour URL">
+                        </td>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ks-skip-check"
+                                   value="<?= $bm['id'] ?>" title="Sélectionner pour exclusion">
+                        </td>
+                        <?php else: ?>
+                        <td></td>
+                        <td class="text-center">
+                            <input type="checkbox" class="form-check-input ks-skip-check"
+                                   value="<?= $bm['id'] ?>" title="Sélectionner pour exclusion">
+                        </td>
+                        <?php endif; ?>
                         <td>
                             <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
                                class="fw-semibold text-decoration-none text-body">
@@ -218,22 +272,123 @@ $total         = count($bookmarks) - count($skipped);
         </div>
     <?php endforeach; ?>
 
-    <!-- Bouton suppression en lot -->
-    <div id="deadActionsBar" class="d-none p-3 border border-danger rounded d-flex align-items-center gap-3 ks-actions-bar ks-actions-bar--danger"
-         style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025">
-        <span class="text-danger fw-semibold">
-            <i class="bi bi-trash me-1"></i>
-            <span id="selectedCount">0</span> favori(s) sélectionné(s)
-        </span>
-        <button type="submit" class="btn btn-danger btn-sm"
-                onclick="return confirm('Supprimer les favoris sélectionnés ?')">
-            Supprimer la sélection
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDeselectAll">
-            Tout désélectionner
-        </button>
+    <!-- Barre suppression en lot -->
+    <div id="deadActionsBar" class="d-none"
+         style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+                width:min(300px,calc(100vw - 2rem));z-index:1025;
+                background:var(--bs-body-bg);border-radius:16px;
+                box-shadow:0 8px 40px rgba(0,0,0,.18);overflow:hidden">
+        <div class="text-center px-4 py-3">
+            <div class="text-danger fw-semibold">
+                <i class="bi bi-trash me-1"></i><span id="selectedCount">0</span> favori(s) sélectionné(s)
+            </div>
+        </div>
+        <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+            <button type="button" id="btnDeselectAll"
+                    class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                    style="border-radius:0;border-right:1px solid var(--bs-border-color)">
+                Annuler
+            </button>
+            <button type="button" id="btnDeleteDeadSelected"
+                    class="btn btn-link flex-fill text-danger fw-semibold py-2 px-3"
+                    style="border-radius:0">
+                Supprimer
+            </button>
+        </div>
     </div>
 </form>
+
+<!-- Barre exclusion en lot -->
+<div id="skipActionsBar" class="d-none"
+     style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(300px,calc(100vw - 2rem));z-index:1025;
+            background:var(--bs-body-bg);border-radius:16px;
+            box-shadow:0 8px 40px rgba(0,0,0,.18);overflow:hidden">
+    <div class="text-center px-4 py-3">
+        <div class="fw-semibold">
+            <i class="bi bi-slash-circle me-1"></i><span id="skipSelectedCount">0</span> favori(s) sélectionné(s)
+        </div>
+    </div>
+    <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+        <button type="button" id="btnDeselectSkip"
+                class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                style="border-radius:0;border-right:1px solid var(--bs-border-color)">
+            Annuler
+        </button>
+        <button type="button" id="btnSkipSelected"
+                class="btn btn-link flex-fill fw-semibold py-2 px-3"
+                style="border-radius:0">
+            Exclure
+        </button>
+    </div>
+</div>
+
+<!-- Barre revérification en lot -->
+<div id="recheckActionsBar" class="d-none"
+     style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(300px,calc(100vw - 2rem));z-index:1025;
+            background:var(--bs-body-bg);border-radius:16px;
+            box-shadow:0 8px 40px rgba(0,0,0,.18);overflow:hidden">
+    <div class="text-center px-4 py-3">
+        <div class="text-primary fw-semibold">
+            <i class="bi bi-arrow-repeat me-1"></i><span id="recheckSelectedCount">0</span> lien(s) à revérifier
+        </div>
+    </div>
+    <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+        <button type="button" id="btnDeselectRecheck"
+                class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                style="border-radius:0;border-right:1px solid var(--bs-border-color)">
+            Annuler
+        </button>
+        <button type="button" id="btnRecheckSelected"
+                class="btn btn-link flex-fill text-primary fw-semibold py-2 px-3"
+                style="border-radius:0">
+            Revérifier
+        </button>
+    </div>
+</div>
+
+<!-- Modale confirmation réinitialisation -->
+<div class="modal fade" id="resetStatusModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:min(300px,calc(100vw - 2rem))">
+        <div class="modal-content border-0" style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+            <div class="text-center px-4 pt-4 pb-3">
+                <div class="fw-bold mb-1">Réinitialiser les statuts</div>
+                <div class="text-muted small">Les résultats existants seront effacés.</div>
+            </div>
+            <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+                <button type="button" class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                        style="border-radius:0;border-right:1px solid var(--bs-border-color)"
+                        data-bs-dismiss="modal">Annuler</button>
+                <button type="button" id="btnResetStatusConfirm"
+                        class="btn btn-link flex-fill fw-semibold py-2 px-3"
+                        style="border-radius:0">Réinitialiser</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modale confirmation suppression en lot -->
+<div class="modal fade" id="deleteDeadModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:min(300px,calc(100vw - 2rem))">
+        <div class="modal-content border-0" style="border-radius:16px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+            <div class="text-center px-4 pt-4 pb-3">
+                <div class="fw-bold mb-1">Supprimer la sélection</div>
+                <div class="text-muted small">
+                    <strong id="deleteDeadModalCount">0</strong> favori(s) supprimé(s) définitivement.
+                </div>
+            </div>
+            <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+                <button type="button" class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                        style="border-radius:0;border-right:1px solid var(--bs-border-color)"
+                        data-bs-dismiss="modal">Annuler</button>
+                <button type="button" id="btnDeleteDeadConfirm"
+                        class="btn btn-link flex-fill text-danger fw-semibold py-2 px-3"
+                        style="border-radius:0">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Section Exclus de la vérification -->
 <?php if (!empty($skipped)): ?>
@@ -244,7 +399,8 @@ $total         = count($bookmarks) - count($skipped);
     <table class="table table-sm align-middle ks-table">
         <thead class="table-light">
             <tr>
-                <th style="width:36px"></th>
+                <th style="width:32px"></th>
+                <th style="width:32px"></th>
                 <th>Titre / URL</th>
                 <th style="width:100px">Dernier statut</th>
                 <th style="width:140px">Vérifié le</th>
@@ -254,6 +410,7 @@ $total         = count($bookmarks) - count($skipped);
         <tbody>
         <?php foreach ($skipped as $bm): ?>
             <tr data-id="<?= $bm['id'] ?>" data-status="skip" data-skip="1">
+                <td></td>
                 <td></td>
                 <td>
                     <a href="<?= View::e($bm['url']) ?>" target="_blank" rel="noopener"
@@ -301,18 +458,28 @@ $total         = count($bookmarks) - count($skipped);
 <?php endif; ?>
 
 <!-- Barre mise à jour redirects -->
-<div id="redirectActionsBar" class="d-none p-3 border border-warning rounded d-flex align-items-center gap-3 ks-actions-bar ks-actions-bar--warning"
-     style="position:fixed;bottom:calc(var(--app-footer-height) + .5rem);left:1rem;right:1rem;z-index:1025">
-    <span class="text-warning-emphasis fw-semibold">
-        <i class="bi bi-arrow-right-circle me-1"></i>
-        <span id="redirectSelectedCount">0</span> lien(s) redirigé(s) sélectionné(s)
-    </span>
-    <button type="button" id="btnUpdateRedirects" class="btn btn-warning btn-sm">
-        Mettre à jour les URLs
-    </button>
-    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnDeselectRedirects">
-        Tout désélectionner
-    </button>
+<div id="redirectActionsBar" class="d-none"
+     style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+            width:min(300px,calc(100vw - 2rem));z-index:1025;
+            background:var(--bs-body-bg);border-radius:16px;
+            box-shadow:0 8px 40px rgba(0,0,0,.18);overflow:hidden">
+    <div class="text-center px-4 py-3">
+        <div class="text-warning-emphasis fw-semibold">
+            <i class="bi bi-arrow-right-circle me-1"></i><span id="redirectSelectedCount">0</span> lien(s) redirigé(s)
+        </div>
+    </div>
+    <div class="d-flex" style="border-top:1px solid var(--bs-border-color)">
+        <button type="button" id="btnDeselectRedirects"
+                class="btn btn-link flex-fill text-secondary fw-normal py-2 px-3"
+                style="border-radius:0;border-right:1px solid var(--bs-border-color)">
+            Annuler
+        </button>
+        <button type="button" id="btnUpdateRedirects"
+                class="btn btn-link flex-fill text-warning-emphasis fw-semibold py-2 px-3"
+                style="border-radius:0">
+            Mettre à jour
+        </button>
+    </div>
 </div>
 
 <script>
@@ -530,6 +697,15 @@ $total         = count($bookmarks) - count($skipped);
         }
     }
 
+    // Modale réinitialisation
+    document.getElementById('btnResetStatus')?.addEventListener('click', () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('resetStatusModal')).show();
+    });
+    document.getElementById('btnResetStatusConfirm')?.addEventListener('click', () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('resetStatusModal')).hide();
+        document.getElementById('resetStatusForm').submit();
+    });
+
     btnPending.addEventListener('click', () => startCheck(getPendingIds()));
     btnAll.addEventListener('click',     () => {
         // Réinitialiser tous les data-status dans le DOM pour forcer la revérification
@@ -538,7 +714,7 @@ $total         = count($bookmarks) - count($skipped);
     });
     btnStop.addEventListener('click', () => { stopRequested = true; });
 
-    // ── Sélection en lot ─────────────────────────────────────────────────────
+    // ── Sélection en lot (suppression) ──────────────────────────────────────
     function updateActionBar() {
         const n   = document.querySelectorAll('.ks-dead-check:checked').length;
         const bar = document.getElementById('deadActionsBar');
@@ -564,6 +740,63 @@ $total         = count($bookmarks) - count($skipped);
         updateActionBar();
     });
 
+    // Modale confirmation suppression
+    document.getElementById('btnDeleteDeadSelected')?.addEventListener('click', () => {
+        const n = document.querySelectorAll('.ks-dead-check:checked').length;
+        document.getElementById('deleteDeadModalCount').textContent = n;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteDeadModal')).show();
+    });
+
+    document.getElementById('btnDeleteDeadConfirm')?.addEventListener('click', () => {
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteDeadModal')).hide();
+        document.getElementById('deadLinksForm').submit();
+    });
+
+    // ── Sélection en lot (exclusion) ─────────────────────────────────────────
+    function updateSkipBar() {
+        const n   = document.querySelectorAll('.ks-skip-check:checked').length;
+        const bar = document.getElementById('skipActionsBar');
+        bar.classList.toggle('d-none', n === 0);
+        document.getElementById('skipSelectedCount').textContent = n;
+    }
+
+    document.querySelectorAll('.ks-skip-check').forEach(cb => {
+        cb.addEventListener('change', updateSkipBar);
+    });
+
+    document.querySelectorAll('.ks-check-skip-section').forEach(cb => {
+        cb.addEventListener('change', function () {
+            const table = this.closest('table');
+            table.querySelectorAll('.ks-skip-check').forEach(c => c.checked = this.checked);
+            updateSkipBar();
+        });
+    });
+
+    document.getElementById('btnDeselectSkip')?.addEventListener('click', () => {
+        document.querySelectorAll('.ks-skip-check, .ks-check-skip-section').forEach(c => c.checked = false);
+        updateSkipBar();
+    });
+
+    document.getElementById('btnSkipSelected')?.addEventListener('click', async function () {
+        const ids = Array.from(document.querySelectorAll('.ks-skip-check:checked')).map(c => c.value);
+        if (!ids.length) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" style="width:.75rem;height:.75rem"></span>Exclusion…';
+
+        for (const id of ids) {
+            const fd = new FormData();
+            fd.append('_csrf', csrf);
+            fd.append('id', id);
+            try {
+                await fetch('?action=bookmark_toggle_skip', { method: 'POST', body: fd });
+            } catch (_) { /* continue */ }
+        }
+
+        location.reload();
+    });
+
     // ── Sélection redirects ──────────────────────────────────────────────────
     function updateRedirectBar() {
         const n   = document.querySelectorAll('.ks-redirect-check:checked').length;
@@ -584,6 +817,66 @@ $total         = count($bookmarks) - count($skipped);
     document.getElementById('btnDeselectRedirects')?.addEventListener('click', () => {
         document.querySelectorAll('.ks-redirect-check, .ks-check-redirect-section').forEach(c => c.checked = false);
         updateRedirectBar();
+    });
+
+    // ── Revérification en lot ────────────────────────────────────────────────
+    function updateRecheckBar() {
+        const n   = document.querySelectorAll('.ks-recheck-check:checked').length;
+        const bar = document.getElementById('recheckActionsBar');
+        bar.classList.toggle('d-none', n === 0);
+        document.getElementById('recheckSelectedCount').textContent = n;
+    }
+
+    document.querySelectorAll('.ks-recheck-check').forEach(cb => {
+        cb.addEventListener('change', updateRecheckBar);
+    });
+
+    document.querySelectorAll('.ks-check-recheck-section').forEach(cb => {
+        cb.addEventListener('change', function () {
+            const table = this.closest('table');
+            table.querySelectorAll('.ks-recheck-check').forEach(c => c.checked = this.checked);
+            updateRecheckBar();
+        });
+    });
+
+    document.getElementById('btnDeselectRecheck')?.addEventListener('click', () => {
+        document.querySelectorAll('.ks-recheck-check, .ks-check-recheck-section').forEach(c => c.checked = false);
+        updateRecheckBar();
+    });
+
+    document.getElementById('btnRecheckSelected')?.addEventListener('click', async function () {
+        const ids = Array.from(document.querySelectorAll('.ks-recheck-check:checked')).map(c => c.value);
+        if (!ids.length) return;
+
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:.75rem;height:.75rem"></span>';
+
+        for (const id of ids) {
+            const fd = new FormData();
+            fd.append('_csrf', csrf);
+            fd.append('id', id);
+            try {
+                const r    = await fetch('?action=bookmark_check_single', { method: 'POST', body: fd });
+                const data = await r.json();
+                if (data.ok) {
+                    const tr = document.querySelector(`tr[data-id="${id}"]`);
+                    if (tr) tr.dataset.status = data.status;
+                    const cls   = data.status === 'ok' ? 'text-bg-success'
+                                : data.status === 'redirect' ? 'text-bg-warning' : 'text-bg-danger';
+                    const label = data.http_code > 0 ? data.http_code
+                                : (data.status === 'timeout' ? 'Timeout' : '—');
+                    document.querySelectorAll(`.ks-http-code[data-id="${id}"]`).forEach(el => {
+                        el.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+                    });
+                    document.querySelectorAll(`.ks-checked-at[data-id="${id}"]`).forEach(el => {
+                        el.textContent = data.checked_at.substring(0, 16);
+                    });
+                }
+            } catch (_) { /* continue */ }
+        }
+
+        location.reload();
     });
 
     // ── Mise à jour des URLs redirigées ──────────────────────────────────────

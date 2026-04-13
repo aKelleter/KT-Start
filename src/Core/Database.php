@@ -22,4 +22,10 @@ final class Database
 
         return self::$pdo;
     }
+
+    /** Injecte une connexion externe — réservé aux tests. */
+    public static function setConnection(PDO $pdo): void
+    {
+        self::$pdo = $pdo;
+    }
 }

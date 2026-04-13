@@ -306,7 +306,7 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
         <a href="<?= \App\Core\View::e($bm['url']) ?>" target="_blank" rel="noopener" class="ks-badge-link">
             <div class="ks-badge-thumb" style="background:<?= $bg ?>">
                 <span><?= \App\Core\View::e($bm['badge_text'] ?: $bm['title'] ?: $bm['host']) ?></span>
-                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok' && !$bm['check_skip']): ?>
                 <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?>"
                       title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
                 <?php endif; ?>
@@ -331,7 +331,8 @@ $renderBadge = function(array $bm) use ($readOnly, $sort, $q): void {
                     data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
                     data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
                     data-list-id="<?= (int) $bm['list_id'] ?>"
-                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>"
+                    data-check-skip="<?= (int) $bm['check_skip'] ?>">
                 <i class="bi bi-pencil"></i>
             </button>
             <button class="ks-quick-delete btn btn-link p-0"
@@ -476,7 +477,7 @@ $renderTableRow = function(array $bm, int $depth = 0) use ($readOnly, $sort, $q)
         </td>
         <td>
             <div class="d-flex align-items-center gap-2">
-                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+                <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok' && !$bm['check_skip']): ?>
                 <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?> flex-shrink-0"
                       title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
                 <?php endif; ?>
@@ -521,7 +522,8 @@ $renderTableRow = function(array $bm, int $depth = 0) use ($readOnly, $sort, $q)
                         data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
                         data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
                         data-list-id="<?= (int) $bm['list_id'] ?>"
-                        data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                        data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>"
+                        data-check-skip="<?= (int) $bm['check_skip'] ?>">
                     <i class="bi bi-pencil"></i>
                 </button>
                 <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
@@ -564,15 +566,35 @@ $tableFolderRow = function(array $folder, bool $ro, int $cols, int $depth = 0) u
 $cols = $readOnly ? 5 : 6;
 ?>
 
+<?php
+// Helper : génère un lien de tri pour un en-tête de colonne
+$thSort = function(string $label, string $sortAsc, string $sortDesc) use ($sort, $q): string {
+    if ($sort === $sortAsc) {
+        $icon = '<i class="bi bi-chevron-up ms-1 text-primary" style="font-size:.7rem"></i>';
+        $href = $q(['sort' => $sortDesc, 'page' => null]);
+        $cls  = 'text-primary';
+    } elseif ($sort === $sortDesc) {
+        $icon = '<i class="bi bi-chevron-down ms-1 text-primary" style="font-size:.7rem"></i>';
+        $href = $q(['sort' => $sortAsc, 'page' => null]);
+        $cls  = 'text-primary';
+    } else {
+        $icon = '<i class="bi bi-chevron-expand ms-1 text-muted" style="font-size:.7rem"></i>';
+        $href = $q(['sort' => $sortAsc, 'page' => null]);
+        $cls  = '';
+    }
+    return '<a href="' . $href . '" class="ks-th-sort-link ' . $cls . '">' . $label . $icon . '</a>';
+};
+?>
+
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle ks-table">
         <thead class="table-light">
             <tr>
                 <th style="width:36px"></th>
-                <th>Titre / Domaine</th>
-                <th>Liste</th>
+                <th><?= $thSort('Titre / Domaine', 'title', 'title_desc') ?></th>
+                <th><?= $thSort('Liste', 'list_asc', 'list_desc') ?></th>
                 <th>Tags</th>
-                <th>Visibilité</th>
+                <th><?= $thSort('Visibilité', 'visibility_asc', 'visibility_desc') ?></th>
                 <?php if (!$readOnly): ?><th style="width:88px"></th><?php endif; ?>
             </tr>
         </thead>
@@ -620,7 +642,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
         <span class="ks-drag-handle"><i class="bi bi-grip-vertical"></i></span>
         <?php endif; ?>
         <div class="ks-compact-dot" style="background:<?= $bg ?>"></div>
-        <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok'): ?>
+        <?php if (!empty($bm['last_check_status']) && $bm['last_check_status'] !== 'ok' && !$bm['check_skip']): ?>
         <span class="ks-link-dot ks-link-dot--<?= \App\Core\View::e($bm['last_check_status']) ?>"
               title="<?= $bm['last_check_status'] === 'redirect' ? 'Redirigé (301)' : 'Lien inaccessible' ?>"></span>
         <?php endif; ?>
@@ -651,7 +673,8 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                 data-tags="<?= \App\Core\View::e($bm['tags']) ?>"
                 data-visibility="<?= \App\Core\View::e($bm['visibility']) ?>"
                 data-list-id="<?= (int) $bm['list_id'] ?>"
-                data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>"
+                data-check-skip="<?= (int) $bm['check_skip'] ?>">
             <i class="bi bi-pencil text-secondary"></i>
         </button>
         <button class="ks-quick-delete btn btn-link p-0"
@@ -788,7 +811,8 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                                     data-tags="<?= View::e($bm['tags']) ?>"
                                     data-visibility="<?= View::e($bm['visibility']) ?>"
                                     data-list-id="<?= (int) $bm['list_id'] ?>"
-                                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>">
+                                    data-folder-id="<?= $bm['folder_id'] !== null ? (int) $bm['folder_id'] : '' ?>"
+                                    data-check-skip="<?= (int) $bm['check_skip'] ?>">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="ks-quick-delete btn btn-sm btn-outline-secondary"
@@ -1110,9 +1134,15 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
                 </div><!-- /modal-body -->
 
                 <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-outline-danger btn-sm d-none" id="btnDelete">
-                        <i class="bi bi-trash me-1"></i>Supprimer
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-danger btn-sm d-none" id="btnDelete">
+                            <i class="bi bi-trash me-1"></i>Supprimer
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="btnSkipToggle"
+                                title="Exclure ce favori de la vérification automatique des liens">
+                            <i class="bi bi-slash-circle me-1"></i><span id="btnSkipLabel">Exclure de la vérif.</span>
+                        </button>
+                    </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                         <button type="submit" class="btn btn-primary" id="bmSubmitBtn">Ajouter</button>
@@ -1199,6 +1229,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
         form.action = mode === 'edit' ? '?action=bookmark_update' : '?action=bookmark_store';
 
         document.getElementById('btnDelete').classList.toggle('d-none', mode !== 'edit');
+        document.getElementById('btnSkipToggle').classList.toggle('d-none', mode !== 'edit');
 
         document.getElementById('bmDuplicateAlert').classList.add('d-none');
 
@@ -1217,6 +1248,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
             document.getElementById('bmVisibility').value  = btn.dataset.visibility;
             document.getElementById('deleteId').value      = btn.dataset.id;
             selectBadgeStyle(btn.dataset.badgeStyle);
+            updateSkipBtn(parseInt(btn.dataset.checkSkip ?? '0', 10));
         } else {
             form.reset();
             document.getElementById('bmId').value = '';
@@ -1224,6 +1256,53 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
             syncFolderOptionsByList('');
             folderSelect.value = '';
             selectBadgeStyle('deepBlue');
+        }
+    });
+
+    // Skip toggle
+    function updateSkipBtn(skip, id = null) {
+        const btn   = document.getElementById('btnSkipToggle');
+        const label = document.getElementById('btnSkipLabel');
+        const icon  = btn.querySelector('i');
+        if (skip) {
+            btn.classList.replace('btn-outline-secondary', 'btn-warning');
+            icon.className = 'bi bi-slash-circle-fill me-1';
+            label.textContent = 'Réintégrer dans la vérif.';
+            btn.title = 'Réintégrer ce favori dans la vérification automatique des liens';
+        } else {
+            btn.classList.replace('btn-warning', 'btn-outline-secondary');
+            icon.className = 'bi bi-slash-circle me-1';
+            label.textContent = 'Exclure de la vérif.';
+            btn.title = 'Exclure ce favori de la vérification automatique des liens';
+        }
+        btn.dataset.currentSkip = skip ? '1' : '0';
+
+        // Masquer/afficher la pastille de statut sur les cartes/lignes
+        if (id) {
+            document.querySelectorAll('[data-id="' + id + '"] .ks-link-dot').forEach(dot => {
+                dot.style.display = skip ? 'none' : '';
+            });
+        }
+    }
+
+    document.getElementById('btnSkipToggle').addEventListener('click', async function () {
+        const id   = document.getElementById('bmId').value;
+        const csrf = document.querySelector('#bookmarkForm input[name="_csrf"]').value;
+        this.disabled = true;
+        try {
+            const res  = await fetch('?action=bookmark_toggle_skip', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: '_csrf=' + encodeURIComponent(csrf) + '&id=' + encodeURIComponent(id),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                updateSkipBtn(data.skip, id);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            this.disabled = false;
         }
     });
 

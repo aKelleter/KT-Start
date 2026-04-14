@@ -125,27 +125,61 @@ abstract class TestCase extends PHPUnitTestCase
         return (int) $this->pdo->lastInsertId();
     }
 
+    /** Insère un dossier et retourne son id. */
+    protected function createFolder(
+        int $userId,
+        int $listId,
+        string $name = 'Dossier',
+        ?int $parentId = null,
+        int $position = 0
+    ): int {
+        $this->pdo->prepare(
+            'INSERT INTO folders (name, user_id, list_id, parent_id, position, created_at)
+             VALUES (:name, :user_id, :list_id, :parent_id, :position, :created_at)'
+        )->execute([
+            'name'       => $name,
+            'user_id'    => $userId,
+            'list_id'    => $listId,
+            'parent_id'  => $parentId,
+            'position'   => $position,
+            'created_at' => '2026-01-01 00:00:00',
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
     /** Insère un favori et retourne son id. */
     protected function createBookmark(int $userId, int $listId, array $overrides = []): int
     {
+        // Toutes les colonnes de la table sont déclarées ici avec leur défaut,
+        // afin que PDO SQLite ne rejette pas les clés inconnues des overrides.
         $data = array_merge([
-            'url'        => 'https://example.com',
-            'host'       => 'example.com',
-            'title'      => 'Example',
-            'badge_style'=> 'deepBlue',
-            'badge_text' => '',
-            'visibility' => 'private',
-            'position'   => 0,
-            'created_at' => '2026-01-01 00:00:00',
+            'url'               => 'https://example.com',
+            'host'              => 'example.com',
+            'title'             => 'Example',
+            'description'       => null,
+            'badge_style'       => 'deepBlue',
+            'badge_text'        => '',
+            'tags'              => null,
+            'visibility'        => 'private',
+            'folder_id'         => null,
+            'position'          => 0,
+            'created_at'        => '2026-01-01 00:00:00',
+            'last_check_status' => null,
+            'last_check_at'     => null,
+            'last_http_code'    => null,
+            'check_skip'        => 0,
         ], $overrides);
 
         $this->pdo->prepare(
             'INSERT INTO bookmarks
-                (url, host, title, badge_style, badge_text, visibility,
-                 list_id, user_id, position, created_at)
+                (url, host, title, description, badge_style, badge_text, tags,
+                 visibility, folder_id, list_id, user_id, position, created_at,
+                 last_check_status, last_check_at, last_http_code, check_skip)
              VALUES
-                (:url, :host, :title, :badge_style, :badge_text, :visibility,
-                 :list_id, :user_id, :position, :created_at)'
+                (:url, :host, :title, :description, :badge_style, :badge_text, :tags,
+                 :visibility, :folder_id, :list_id, :user_id, :position, :created_at,
+                 :last_check_status, :last_check_at, :last_http_code, :check_skip)'
         )->execute(array_merge($data, ['list_id' => $listId, 'user_id' => $userId]));
 
         return (int) $this->pdo->lastInsertId();

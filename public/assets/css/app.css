@@ -1415,3 +1415,51 @@ td .ks-link-dot {
 [data-theme="dark"] .ks-theme-toggle:hover {
     background: var(--app-hover-pale);
 }
+
+/* ── Page 404 ──────────────────────────────────────────────────────────── */
+.ks-404-card {
+    background: var(--app-card);
+    border: 1px solid var(--app-border);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    box-shadow: var(--app-shadow);
+}
+.ks-404-code {
+    font-size: 5rem;
+    font-weight: 700;
+    letter-spacing: -2px;
+    color: var(--app-blue);
+    line-height: 1;
+    margin: 0 0 .25rem;
+}
+.ks-404-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--app-text);
+    margin-bottom: .75rem;
+}
+.ks-404-desc {
+    color: var(--app-muted);
+    font-size: .95rem;
+    margin-bottom: 0;
+}
+.ks-404-action-name {
+    margin-top: .5rem;
+    color: var(--app-muted);
+    font-size: .85rem;
+}
+.ks-404-action-name code {
+    background: var(--app-blue-soft);
+    color: var(--app-blue);
+    padding: .15em .45em;
+    border-radius: 6px;
+    font-size: .85rem;
+}
+.ks-404-divider {
+    border-top: 1px solid var(--app-border);
+    margin: 1.5rem 0;
+}
+[data-theme="dark"] .ks-404-card {
+    background: #2a2d35;
+    border-color: rgba(255,255,255,.08);
+}

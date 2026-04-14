@@ -29,7 +29,7 @@ final class Router
 
         if (!$route) {
             http_response_code(404);
-            echo 'Page introuvable';
+            View::render('errors/404', ['requestedAction' => $action]);
             return;
         }
 

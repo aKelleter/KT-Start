@@ -128,15 +128,42 @@ use App\Core\View;
     <input type="hidden" name="id" id="listDeleteId">
 </form>
 
+<!-- ── Modal de confirmation suppression (style iOS) ─────────────────────── -->
+<div class="modal fade" id="listDeleteConfirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:320px">
+        <div class="modal-content rounded-4 overflow-hidden border-0 shadow">
+            <div class="modal-body text-center px-4 pt-4 pb-3">
+                <p class="fw-semibold mb-1">Supprimer cette liste ?</p>
+                <p class="text-muted small mb-0">« <span id="listDeleteConfirmName"></span> »<br>Les favoris associés ne seront pas supprimés.</p>
+            </div>
+            <div class="d-flex border-top" style="min-height:44px">
+                <button type="button" id="btnListDeleteCancel"
+                        class="btn btn-link flex-fill text-secondary text-decoration-none fw-normal rounded-0"
+                        style="border-right:1px solid var(--bs-border-color)">
+                    Annuler
+                </button>
+                <button type="button" id="btnListDeleteConfirm"
+                        class="btn btn-link flex-fill text-danger text-decoration-none fw-semibold rounded-0">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── JS ─────────────────────────────────────────────────────────────────── -->
 <script>
 (function () {
 
     // ── Modal Liste ────────────────────────────────────────────────────────
-    const listModal = document.getElementById('listModal');
-    listModal.addEventListener('show.bs.modal', function (e) {
-        const btn  = e.relatedTarget;
-        const mode = btn?.dataset.mode ?? 'add';
+    // Références aux éléments DOM uniquement (Bootstrap est chargé après le template)
+    const listModalEl       = document.getElementById('listModal');
+    const listDeleteModalEl = document.getElementById('listDeleteConfirmModal');
+    let   pendingDelete     = false;
+
+    listModalEl.addEventListener('show.bs.modal', function (e) {
+        const btn    = e.relatedTarget;
+        const mode   = btn?.dataset.mode ?? 'add';
         const isEdit = mode === 'edit';
 
         document.getElementById('listModalTitle').textContent = isEdit ? 'Renommer la liste' : 'Ajouter une liste';
@@ -145,19 +172,37 @@ use App\Core\View;
         document.getElementById('btnListDelete').classList.toggle('d-none', !isEdit);
 
         if (isEdit) {
-            document.getElementById('listId').value   = btn.dataset.id;
-            document.getElementById('listName').value = btn.dataset.name;
-            document.getElementById('listDeleteId').value = btn.dataset.id;
+            document.getElementById('listId').value                      = btn.dataset.id;
+            document.getElementById('listName').value                    = btn.dataset.name;
+            document.getElementById('listDeleteId').value                = btn.dataset.id;
+            document.getElementById('listDeleteConfirmName').textContent = btn.dataset.name;
         } else {
             document.getElementById('listForm').reset();
             document.getElementById('listId').value = '';
         }
+        pendingDelete = false;
     });
 
+    // Clic "Supprimer" : lever le flag, puis fermer le modal d'édition
     document.getElementById('btnListDelete').addEventListener('click', function () {
-        if (confirm('Supprimer cette liste ? Les favoris associés ne seront pas supprimés.')) {
-            document.getElementById('listDeleteForm').submit();
+        pendingDelete = true;
+        bootstrap.Modal.getOrCreateInstance(listModalEl).hide();
+    });
+
+    // Quand le modal d'édition est totalement fermé : ouvrir la confirmation si demandé
+    listModalEl.addEventListener('hidden.bs.modal', function () {
+        if (pendingDelete) {
+            pendingDelete = false;
+            bootstrap.Modal.getOrCreateInstance(listDeleteModalEl).show();
         }
+    });
+
+    document.getElementById('btnListDeleteCancel').addEventListener('click', function () {
+        bootstrap.Modal.getOrCreateInstance(listDeleteModalEl).hide();
+    });
+
+    document.getElementById('btnListDeleteConfirm').addEventListener('click', function () {
+        document.getElementById('listDeleteForm').submit();
     });
 
     // ── Filtre liste ──────────────────────────────────────────────────────

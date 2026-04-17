@@ -26,6 +26,19 @@ final class AdminController
         }
     }
 
+    private function requireCsrfPost(string $redirectTo): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            $this->fail('Jeton CSRF invalide.', $redirectTo);
+        }
+    }
+
+    private function fail(string $message, string $redirectTo): never
+    {
+        Flash::set('danger', $message);
+        Response::redirect($redirectTo);
+    }
+
     public function index(): void
     {
         $this->requireAdmin();
@@ -107,16 +120,11 @@ final class AdminController
     public function settingUpdate(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_settings');
-        }
+        $this->requireCsrfPost('?action=admin_settings');
 
         $perPage = (int) ($_POST['bookmarks_per_page'] ?? 0);
         if ($perPage < 1 || $perPage > 500) {
-            Flash::set('danger', 'Valeur invalide (1–500).');
-            Response::redirect('?action=admin_settings');
+            $this->fail('Valeur invalide (1–500).', '?action=admin_settings');
         }
 
         $repo = new SettingsRepository();
@@ -131,11 +139,7 @@ final class AdminController
     public function runMigration(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_maintenance');
-        }
+        $this->requireCsrfPost('?action=admin_maintenance');
 
         try {
             $_SESSION['_migration_log'] = MigrationService::run();
@@ -181,23 +185,16 @@ final class AdminController
     public function tagRename(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_tags');
-        }
+        $this->requireCsrfPost('?action=admin_tags');
 
         $old = trim($_POST['old'] ?? '');
         $new = trim($_POST['new'] ?? '');
 
         if ($old === '' || $new === '') {
-            Flash::set('danger', 'Les noms de tag ne peuvent pas être vides.');
-            Response::redirect('?action=admin_tags');
+            $this->fail('Les noms de tag ne peuvent pas être vides.', '?action=admin_tags');
         }
-
         if ($old === $new) {
-            Flash::set('danger', 'Le nouveau nom est identique à l\'ancien.');
-            Response::redirect('?action=admin_tags');
+            $this->fail('Le nouveau nom est identique à l\'ancien.', '?action=admin_tags');
         }
 
         $count = (new BookmarkRepository())->renameTag($old, $new);
@@ -208,17 +205,11 @@ final class AdminController
     public function tagDelete(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_tags');
-        }
+        $this->requireCsrfPost('?action=admin_tags');
 
         $tag = trim($_POST['tag'] ?? '');
-
         if ($tag === '') {
-            Flash::set('danger', 'Tag invalide.');
-            Response::redirect('?action=admin_tags');
+            $this->fail('Tag invalide.', '?action=admin_tags');
         }
 
         $count = (new BookmarkRepository())->deleteTag($tag);
@@ -229,20 +220,11 @@ final class AdminController
     public function tagDeleteUnique(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_tags');
-        }
+        $this->requireCsrfPost('?action=admin_tags');
 
         $count = (new BookmarkRepository())->deleteTagsUsedOnce();
 
-        if ($count === 0) {
-            Flash::set('success', 'Aucun tag unique à supprimer.');
-        } else {
-            Flash::set('success', "{$count} tag(s) uniques supprimés.");
-        }
-
+        Flash::set('success', $count === 0 ? 'Aucun tag unique à supprimer.' : "{$count} tag(s) uniques supprimés.");
         Response::redirect('?action=admin_tags');
     }
 
@@ -277,34 +259,25 @@ final class AdminController
     public function importBookmarks(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_backup');
-        }
+        $this->requireCsrfPost('?action=admin_backup');
 
         $file = $_FILES['import_file'] ?? null;
 
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-            Flash::set('danger', 'Aucun fichier reçu ou erreur lors de l\'upload.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Aucun fichier reçu ou erreur lors de l\'upload.', '?action=admin_backup');
         }
-
         if ($file['size'] > 10 * 1024 * 1024) {
-            Flash::set('danger', 'Fichier trop volumineux (10 Mo max).');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Fichier trop volumineux (10 Mo max).', '?action=admin_backup');
         }
 
         $content = file_get_contents($file['tmp_name']);
         if ($content === false) {
-            Flash::set('danger', 'Impossible de lire le fichier.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Impossible de lire le fichier.', '?action=admin_backup');
         }
 
         $data = json_decode($content, true);
         if (!is_array($data)) {
-            Flash::set('danger', 'Fichier JSON invalide.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Fichier JSON invalide.', '?action=admin_backup');
         }
 
         $fullRestore = isset($_POST['full_restore']) && $_POST['full_restore'] === '1';
@@ -326,28 +299,20 @@ final class AdminController
     public function importHtmlBookmarks(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_backup');
-        }
+        $this->requireCsrfPost('?action=admin_backup');
 
         $file = $_FILES['import_html_file'] ?? null;
 
         if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-            Flash::set('danger', 'Aucun fichier reçu ou erreur lors de l\'upload.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Aucun fichier reçu ou erreur lors de l\'upload.', '?action=admin_backup');
         }
-
         if ($file['size'] > 20 * 1024 * 1024) {
-            Flash::set('danger', 'Fichier trop volumineux (20 Mo max).');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Fichier trop volumineux (20 Mo max).', '?action=admin_backup');
         }
 
         $content = file_get_contents($file['tmp_name']);
         if ($content === false) {
-            Flash::set('danger', 'Impossible de lire le fichier.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Impossible de lire le fichier.', '?action=admin_backup');
         }
 
         // Detect format: Firefox JSON backup or Netscape HTML
@@ -356,8 +321,7 @@ final class AdminController
         if (is_array($decoded) && str_starts_with((string) ($decoded['type'] ?? ''), 'text/x-moz-place')) {
             $firefoxData = $decoded;
         } elseif (stripos($content, 'NETSCAPE-Bookmark-file') === false) {
-            Flash::set('danger', 'Format non reconnu. Attendu : fichier HTML (Firefox/Chrome/Safari) ou backup JSON Firefox.');
-            Response::redirect('?action=admin_backup');
+            $this->fail('Format non reconnu. Attendu : fichier HTML (Firefox/Chrome/Safari) ou backup JSON Firefox.', '?action=admin_backup');
         }
 
         // Resolve target list
@@ -368,16 +332,14 @@ final class AdminController
         if ($listChoice === 'new') {
             $newName = trim((string) ($_POST['html_new_list_name'] ?? ''));
             if ($newName === '') {
-                Flash::set('danger', 'Le nom de la nouvelle liste ne peut pas être vide.');
-                Response::redirect('?action=admin_backup');
+                $this->fail('Le nom de la nouvelle liste ne peut pas être vide.', '?action=admin_backup');
             }
             $existing = $listRepo->findByName($newName);
             $listId   = $existing ? (int) $existing['id'] : $listRepo->create($newName);
         } else {
             $listId = (int) ($_POST['html_list_id'] ?? 0);
             if ($listId <= 0) {
-                Flash::set('danger', 'Veuillez sélectionner une liste valide.');
-                Response::redirect('?action=admin_backup');
+                $this->fail('Veuillez sélectionner une liste valide.', '?action=admin_backup');
             }
         }
 
@@ -395,31 +357,22 @@ final class AdminController
     public function userStore(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_users');
-        }
+        $this->requireCsrfPost('?action=admin_users');
 
         $email    = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
         $role     = ($_POST['role'] ?? 'admin') === 'admin' ? 'admin' : 'user';
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            Flash::set('danger', 'Email invalide.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Email invalide.', '?action=admin_users');
         }
-
         if (strlen($password) < 8) {
-            Flash::set('danger', 'Le mot de passe doit faire au moins 8 caractères.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Le mot de passe doit faire au moins 8 caractères.', '?action=admin_users');
         }
 
         $repo = new UserRepository();
-
         if ($repo->emailExists($email)) {
-            Flash::set('danger', 'Cet email est déjà utilisé.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Cet email est déjà utilisé.', '?action=admin_users');
         }
 
         $repo->create([
@@ -436,31 +389,22 @@ final class AdminController
     public function userUpdate(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_users');
-        }
+        $this->requireCsrfPost('?action=admin_users');
 
         $id    = (int) ($_POST['id'] ?? 0);
         $email = trim($_POST['email'] ?? '');
         $role  = ($_POST['role'] ?? 'admin') === 'admin' ? 'admin' : 'user';
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            Flash::set('danger', 'Email invalide.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Email invalide.', '?action=admin_users');
         }
 
         $repo = new UserRepository();
-
         if (!$repo->findById($id)) {
-            Flash::set('danger', 'Utilisateur introuvable.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Utilisateur introuvable.', '?action=admin_users');
         }
-
         if ($repo->emailExists($email, $id)) {
-            Flash::set('danger', 'Cet email est déjà utilisé.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Cet email est déjà utilisé.', '?action=admin_users');
         }
 
         $data = ['email' => $email, 'role' => $role];
@@ -468,8 +412,7 @@ final class AdminController
         $password = $_POST['password'] ?? '';
         if ($password !== '') {
             if (strlen($password) < 8) {
-                Flash::set('danger', 'Le mot de passe doit faire au moins 8 caractères.');
-                Response::redirect('?action=admin_users');
+                $this->fail('Le mot de passe doit faire au moins 8 caractères.', '?action=admin_users');
             }
             $data['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
         }
@@ -488,26 +431,19 @@ final class AdminController
     public function userDelete(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_users');
-        }
+        $this->requireCsrfPost('?action=admin_users');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $repo = new UserRepository();
 
         if ($id === Auth::id()) {
-            Flash::set('danger', 'Vous ne pouvez pas supprimer votre propre compte.');
-            Response::redirect('?action=admin_users');
+            $this->fail('Vous ne pouvez pas supprimer votre propre compte.', '?action=admin_users');
         }
 
-        $user   = $repo->findById($id);
-        $admins = array_filter($repo->findAll(), fn($u) => $u['role'] === 'admin');
+        $user = $repo->findById($id);
 
-        if ($user && $user['role'] === 'admin' && count($admins) <= 1) {
-            Flash::set('danger', 'Impossible de supprimer le dernier administrateur.');
-            Response::redirect('?action=admin_users');
+        if ($user && $user['role'] === 'admin' && $repo->countByRole('admin') <= 1) {
+            $this->fail('Impossible de supprimer le dernier administrateur.', '?action=admin_users');
         }
 
         $repo->delete($id);
@@ -520,22 +456,16 @@ final class AdminController
     public function listStore(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_lists');
-        }
+        $this->requireCsrfPost('?action=admin_lists');
 
         $name = trim($_POST['name'] ?? '');
         if ($name === '') {
-            Flash::set('danger', 'Le nom est obligatoire.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Le nom est obligatoire.', '?action=admin_lists');
         }
 
         $repo = new ListRepository();
         if ($repo->findByName($name)) {
-            Flash::set('danger', 'Cette liste existe déjà.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Cette liste existe déjà.', '?action=admin_lists');
         }
 
         $repo->create($name);
@@ -546,26 +476,19 @@ final class AdminController
     public function listRename(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_lists');
-        }
+        $this->requireCsrfPost('?action=admin_lists');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
 
         if ($name === '') {
-            Flash::set('danger', 'Le nom est obligatoire.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Le nom est obligatoire.', '?action=admin_lists');
         }
 
         $repo     = new ListRepository();
         $existing = $repo->findByName($name);
-
         if ($existing && (int) $existing['id'] !== $id) {
-            Flash::set('danger', 'Ce nom est déjà utilisé.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Ce nom est déjà utilisé.', '?action=admin_lists');
         }
 
         $repo->rename($id, $name);
@@ -576,18 +499,13 @@ final class AdminController
     public function listSetDefault(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_lists');
-        }
+        $this->requireCsrfPost('?action=admin_lists');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $repo = new ListRepository();
 
         if (!$repo->findById($id)) {
-            Flash::set('danger', 'Liste introuvable.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Liste introuvable.', '?action=admin_lists');
         }
 
         // Si la liste est déjà la liste par défaut, on la retire
@@ -605,18 +523,13 @@ final class AdminController
     public function listDelete(): void
     {
         $this->requireAdmin();
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_lists');
-        }
+        $this->requireCsrfPost('?action=admin_lists');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $repo = new ListRepository();
 
         if (!$repo->findById($id)) {
-            Flash::set('danger', 'Liste introuvable.');
-            Response::redirect('?action=admin_lists');
+            $this->fail('Liste introuvable.', '?action=admin_lists');
         }
 
         $repo->delete($id);
@@ -655,18 +568,13 @@ final class AdminController
     {
         $this->requireAdmin();
         $listId = (int) ($_POST['list_id'] ?? 0);
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
-        }
+        $this->requireCsrfPost('?action=admin_folders&list_id=' . $listId);
 
         $parentId = ($_POST['parent_id'] ?? '') !== '' ? (int) $_POST['parent_id'] : null;
         $name     = trim($_POST['name'] ?? '');
 
         if ($listId <= 0 || $name === '') {
-            Flash::set('danger', 'Données invalides.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
+            $this->fail('Données invalides.', '?action=admin_folders&list_id=' . $listId);
         }
 
         (new FolderRepository())->create((int) Auth::id(), $listId, $parentId, $name);
@@ -678,21 +586,16 @@ final class AdminController
     {
         $this->requireAdmin();
         $listId = (int) ($_POST['list_id'] ?? 0);
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
-        }
+        $this->requireCsrfPost('?action=admin_folders&list_id=' . $listId);
 
         $id   = (int) ($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
 
         if ($id <= 0 || $name === '') {
-            Flash::set('danger', 'Données invalides.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
+            $this->fail('Données invalides.', '?action=admin_folders&list_id=' . $listId);
         }
 
-        (new FolderRepository())->renameAdmin($id, $name);
+        (new FolderRepository())->rename($id, $name);
         Flash::set('success', 'Dossier renommé.');
         Response::redirect('?action=admin_folders&list_id=' . $listId);
     }
@@ -701,19 +604,14 @@ final class AdminController
     {
         $this->requireAdmin();
         $listId = (int) ($_POST['list_id'] ?? 0);
-
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
-        }
+        $this->requireCsrfPost('?action=admin_folders&list_id=' . $listId);
 
         $id = (int) ($_POST['id'] ?? 0);
         if ($id <= 0) {
-            Flash::set('danger', 'Données invalides.');
-            Response::redirect('?action=admin_folders&list_id=' . $listId);
+            $this->fail('Données invalides.', '?action=admin_folders&list_id=' . $listId);
         }
 
-        (new FolderRepository())->deleteAndLiftChildrenAdmin($id);
+        (new FolderRepository())->deleteAndLiftChildren($id);
         Flash::set('success', 'Dossier supprimé.');
         Response::redirect('?action=admin_folders&list_id=' . $listId);
     }
@@ -726,7 +624,7 @@ final class AdminController
         $body = json_decode(file_get_contents('php://input'), true);
         if (!is_array($body) || !isset($body['folders'], $body['list_id'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Invalid payload']);
+            echo json_encode(['error' => 'Payload invalide']);
             return;
         }
 
@@ -741,10 +639,10 @@ final class AdminController
                 continue;
             }
             // Refuser les cycles (un dossier ne peut pas être son propre ancêtre)
-            if ($parentId !== null && $repo->wouldCreateCycleAdmin($id, $parentId)) {
+            if ($parentId !== null && $repo->wouldCreateCycle($id, $parentId)) {
                 continue;
             }
-            $repo->setParentAndPositionAdmin($id, $listId, $parentId, $pos);
+            $repo->setParentAndPosition($id, $listId, $parentId, $pos);
         }
 
         echo json_encode(['ok' => true]);

@@ -164,10 +164,7 @@ final class BookmarkController
 
     public function store(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $url = trim($_POST['url'] ?? '');
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
@@ -201,10 +198,7 @@ final class BookmarkController
 
     public function update(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $repo = new BookmarkRepository();
@@ -238,10 +232,7 @@ final class BookmarkController
 
     public function delete(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $repo = new BookmarkRepository();
@@ -262,11 +253,14 @@ final class BookmarkController
     {
         header('Content-Type: application/json');
 
-        $body = (array) json_decode(file_get_contents('php://input'), true);
+        $body = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($body)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Payload invalide']);
+            return;
+        }
 
-        if (!Csrf::validate($body['_csrf'] ?? null)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF invalide']);
+        if (!$this->verifyCsrfJson($body['_csrf'] ?? null)) {
             return;
         }
 
@@ -326,9 +320,7 @@ final class BookmarkController
     {
         header('Content-Type: application/json');
 
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF invalide']);
+        if (!$this->verifyCsrfJson($_POST['_csrf'] ?? null)) {
             return;
         }
 
@@ -358,10 +350,7 @@ final class BookmarkController
 
     public function resetLinkStatus(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmark_links_report');
-        }
+        $this->requireCsrfPost('?action=bookmark_links_report');
 
         $count = (new BookmarkRepository())->resetCheckStatus((int) Auth::id());
 
@@ -373,9 +362,7 @@ final class BookmarkController
     {
         header('Content-Type: application/json');
 
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF invalide']);
+        if (!$this->verifyCsrfJson($_POST['_csrf'] ?? null)) {
             return;
         }
 
@@ -400,9 +387,7 @@ final class BookmarkController
     {
         header('Content-Type: application/json');
 
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF invalide']);
+        if (!$this->verifyCsrfJson($_POST['_csrf'] ?? null)) {
             return;
         }
 
@@ -437,10 +422,7 @@ final class BookmarkController
 
     public function deleteDeadLinks(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmark_links_report');
-        }
+        $this->requireCsrfPost('?action=bookmark_links_report');
 
         $ids    = array_map('intval', (array) ($_POST['ids'] ?? []));
         $userId = (int) Auth::id();
@@ -472,10 +454,7 @@ final class BookmarkController
 
     public function folderStore(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $userId = (int) Auth::id();
         $listId = (int) ($_POST['list_id'] ?? 0);
@@ -501,10 +480,7 @@ final class BookmarkController
 
     public function folderRename(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $id   = (int) ($_POST['id'] ?? 0);
         $name = trim($_POST['name'] ?? '');
@@ -514,7 +490,7 @@ final class BookmarkController
             Response::redirect($this->buildRedirectUrl());
         }
 
-        $ok = (new FolderRepository())->rename($id, (int) Auth::id(), $name);
+        $ok = (new FolderRepository())->rename($id, $name, (int) Auth::id());
 
         Flash::set($ok ? 'success' : 'warning', $ok ? 'Dossier renommé.' : 'Dossier introuvable.');
         Response::redirect($this->buildRedirectUrl());
@@ -522,10 +498,7 @@ final class BookmarkController
 
     public function folderDelete(): void
     {
-        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
-            Flash::set('danger', 'Jeton CSRF invalide.');
-            Response::redirect('?action=bookmarks');
-        }
+        $this->requireCsrfPost('?action=bookmarks');
 
         $id = (int) ($_POST['id'] ?? 0);
         if ($id <= 0) {
@@ -543,11 +516,14 @@ final class BookmarkController
     {
         header('Content-Type: application/json');
 
-        $body = (array) json_decode(file_get_contents('php://input'), true);
+        $body = json_decode(file_get_contents('php://input'), true);
+        if (!is_array($body)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Payload invalide']);
+            return;
+        }
 
-        if (!Csrf::validate($body['_csrf'] ?? null)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'CSRF invalide']);
+        if (!$this->verifyCsrfJson($body['_csrf'] ?? null)) {
             return;
         }
 
@@ -586,7 +562,7 @@ final class BookmarkController
                 if ($folderRepo->wouldCreateCycle($id, $parentId, $userId, $listId)) {
                     continue;
                 }
-                $folderRepo->setParentAndPosition($id, $userId, $listId, $parentId, (int) $pos);
+                $folderRepo->setParentAndPosition($id, $listId, $parentId, (int) $pos, $userId);
                 continue;
             }
 
@@ -615,6 +591,24 @@ final class BookmarkController
         $page       = max(1, min($totalPages, (int) ($_GET['page'] ?? 1)));
         $offset     = ($page - 1) * self::perPage();
         return [$page, $totalPages, $offset];
+    }
+
+    private function requireCsrfPost(string $redirectTo): void
+    {
+        if (!Csrf::validate($_POST['_csrf'] ?? null)) {
+            Flash::set('danger', 'Jeton CSRF invalide.');
+            Response::redirect($redirectTo);
+        }
+    }
+
+    private function verifyCsrfJson(mixed $token): bool
+    {
+        if (!Csrf::validate($token)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'CSRF invalide']);
+            return false;
+        }
+        return true;
     }
 
     private function resolveListId(): ?int
@@ -675,7 +669,7 @@ final class BookmarkController
             'title'       => $title,
             'host'        => $host,
             'lists'       => (new ListRepository())->findAll(),
-            'folders'     => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
+            'folders'     => (new FolderRepository())->findAllByUser((int) Auth::id()),
             'badgeStyles' => \App\Config\BadgeStyles::all(),
             'allTags'     => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
             'csrf'        => Csrf::token(),
@@ -697,7 +691,7 @@ final class BookmarkController
                 'notLogged'  => false, 'saved' => false, 'error' => 'Jeton CSRF invalide.',
                 'url' => '', 'title' => '', 'host' => '',
                 'lists'      => (new ListRepository())->findAll(),
-                'folders'    => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
+                'folders'    => (new FolderRepository())->findAllByUser((int) Auth::id()),
                 'badgeStyles' => \App\Config\BadgeStyles::all(),
                 'allTags'    => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
                 'csrf'       => Csrf::token(),
@@ -713,7 +707,7 @@ final class BookmarkController
                 'title'      => trim($_POST['title'] ?? ''),
                 'host'       => (string) parse_url($url, PHP_URL_HOST),
                 'lists'      => (new ListRepository())->findAll(),
-                'folders'    => (new \App\Repository\FolderRepository())->findAllByUser((int) Auth::id()),
+                'folders'    => (new FolderRepository())->findAllByUser((int) Auth::id()),
                 'badgeStyles' => \App\Config\BadgeStyles::all(),
                 'allTags'    => array_keys((new BookmarkRepository())->getAllTags((int) Auth::id())),
                 'csrf'       => Csrf::token(),

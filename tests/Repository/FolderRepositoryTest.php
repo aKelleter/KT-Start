@@ -11,8 +11,8 @@ use Tests\TestCase;
  *
  * Chaque test tourne sur une base SQLite en mémoire isolée.
  * Focus sur la logique métier non triviale :
- *   - Détection de cycle (wouldCreateCycle / wouldCreateCycleAdmin)
- *   - Suppression avec remontée des enfants (deleteAndLiftChildren / deleteAndLiftChildrenAdmin)
+ *   - Détection de cycle (wouldCreateCycle / wouldCreateCycle)
+ *   - Suppression avec remontée des enfants (deleteAndLiftChildren / deleteAndLiftChildren)
  */
 final class FolderRepositoryTest extends TestCase
 {
@@ -115,7 +115,7 @@ final class FolderRepositoryTest extends TestCase
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // wouldCreateCycleAdmin — même logique sans contrainte user/list
+    // wouldCreateCycle — même logique sans contrainte user/list
     // ══════════════════════════════════════════════════════════════════════════
 
     public function test_admin_pas_de_cycle_si_parent_independant(): void
@@ -123,14 +123,14 @@ final class FolderRepositoryTest extends TestCase
         $a = $this->createFolder($this->userId, $this->listId, 'A');
         $b = $this->createFolder($this->userId, $this->listId, 'B');
 
-        $this->assertFalse($this->repo->wouldCreateCycleAdmin($a, $b));
+        $this->assertFalse($this->repo->wouldCreateCycle($a, $b));
     }
 
     public function test_admin_cycle_si_meme_id(): void
     {
         $a = $this->createFolder($this->userId, $this->listId, 'A');
 
-        $this->assertTrue($this->repo->wouldCreateCycleAdmin($a, $a));
+        $this->assertTrue($this->repo->wouldCreateCycle($a, $a));
     }
 
     public function test_admin_cycle_enfant_devient_parent(): void
@@ -138,7 +138,7 @@ final class FolderRepositoryTest extends TestCase
         $a = $this->createFolder($this->userId, $this->listId, 'A');
         $b = $this->createFolder($this->userId, $this->listId, 'B', parentId: $a);
 
-        $this->assertTrue($this->repo->wouldCreateCycleAdmin($a, $b));
+        $this->assertTrue($this->repo->wouldCreateCycle($a, $b));
     }
 
     public function test_admin_cycle_profond(): void
@@ -147,7 +147,7 @@ final class FolderRepositoryTest extends TestCase
         $b = $this->createFolder($this->userId, $this->listId, 'B', parentId: $a);
         $c = $this->createFolder($this->userId, $this->listId, 'C', parentId: $b);
 
-        $this->assertTrue($this->repo->wouldCreateCycleAdmin($a, $c));
+        $this->assertTrue($this->repo->wouldCreateCycle($a, $c));
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -251,12 +251,12 @@ final class FolderRepositoryTest extends TestCase
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // deleteAndLiftChildrenAdmin — même logique sans contrainte user
+    // deleteAndLiftChildren — même logique sans contrainte user
     // ══════════════════════════════════════════════════════════════════════════
 
     public function test_admin_delete_retourne_false_si_dossier_inexistant(): void
     {
-        $this->assertFalse($this->repo->deleteAndLiftChildrenAdmin(999));
+        $this->assertFalse($this->repo->deleteAndLiftChildren(999));
     }
 
     public function test_admin_delete_remonte_sous_dossiers_et_favoris(): void
@@ -268,7 +268,7 @@ final class FolderRepositoryTest extends TestCase
         $b  = $this->createFolder($otherUser, $this->listId, 'B', parentId: $a);
         $bm = $this->createBookmark($otherUser, $this->listId, ['folder_id' => $a]);
 
-        $result = $this->repo->deleteAndLiftChildrenAdmin($a);
+        $result = $this->repo->deleteAndLiftChildren($a);
 
         $this->assertTrue($result);
 

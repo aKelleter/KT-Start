@@ -211,19 +211,7 @@ final class BookmarkRepository
             "SELECT tags FROM bookmarks WHERE user_id = :user_id AND tags IS NOT NULL AND tags != ''"
         );
         $stmt->execute(['user_id' => $userId]);
-
-        $tags = [];
-        foreach ($stmt->fetchAll() as $row) {
-            foreach (explode(',', $row['tags']) as $t) {
-                $t = trim($t);
-                if ($t !== '') {
-                    $tags[$t] = ($tags[$t] ?? 0) + 1;
-                }
-            }
-        }
-
-        arsort($tags); // fréquence décroissante
-        return $tags;
+        return $this->aggregateTags($stmt);
     }
 
     /** @return array<string, int>  tag => count, tous utilisateurs, trié par fréquence décroissante */
@@ -232,7 +220,12 @@ final class BookmarkRepository
         $stmt = Database::connection()->query(
             "SELECT tags FROM bookmarks WHERE tags IS NOT NULL AND tags != ''"
         );
+        return $this->aggregateTags($stmt);
+    }
 
+    /** @return array<string, int> */
+    private function aggregateTags(\PDOStatement $stmt): array
+    {
         $tags = [];
         foreach ($stmt->fetchAll() as $row) {
             foreach (explode(',', $row['tags']) as $t) {
@@ -242,7 +235,6 @@ final class BookmarkRepository
                 }
             }
         }
-
         arsort($tags);
         return $tags;
     }

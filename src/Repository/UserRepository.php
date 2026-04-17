@@ -77,6 +77,15 @@ final class UserRepository
         $stmt->execute($data);
     }
 
+    public function countByRole(string $role): int
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM users WHERE role = :role'
+        );
+        $stmt->execute(['role' => $role]);
+        return (int) $stmt->fetchColumn();
+    }
+
     public function delete(int $id): void
     {
         $stmt = Database::connection()->prepare('DELETE FROM users WHERE id = :id');

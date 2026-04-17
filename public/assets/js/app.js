@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (themeToggle) {
-        // Sync icon with current theme (already applied by inline script)
         applyTheme(html.getAttribute('data-theme') || 'light');
 
         themeToggle.addEventListener('click', () => {
@@ -43,6 +42,81 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('ks-theme', next);
             applyTheme(next);
         });
+    }
+
+    // ── Toggle liste dropdown/boutons ─────────────────────────────────────
+    const listNavToggle = document.getElementById('btnListNavToggle');
+    if (listNavToggle) {
+        const KEY  = 'ks-list-nav';
+        let mode   = document.documentElement.dataset.listNav || 'buttons';
+
+        function applyListNavIcon(m) {
+            if (m === 'buttons') {
+                listNavToggle.innerHTML = '<i class="bi bi-menu-button-wide-fill"></i>';
+                listNavToggle.title = 'Passer en liste déroulante';
+            } else {
+                listNavToggle.innerHTML = '<i class="bi bi-collection"></i>';
+                listNavToggle.title = 'Passer en boutons';
+            }
+        }
+
+        applyListNavIcon(mode);
+
+        listNavToggle.addEventListener('click', function () {
+            const next    = mode === 'buttons' ? 'dropdown' : 'buttons';
+            const leaving = document.getElementById(mode === 'buttons' ? 'ks-list-nav-buttons' : 'ks-list-filter-dropdown');
+
+            const DURATION = 400;
+            const EASING   = 'opacity ' + DURATION + 'ms ease, transform ' + DURATION + 'ms ease';
+
+            function doSwitch() {
+                mode = next;
+                localStorage.setItem(KEY, mode);
+                document.documentElement.dataset.listNav = mode;
+                applyListNavIcon(mode);
+
+                const entering = document.getElementById(mode === 'buttons' ? 'ks-list-nav-buttons' : 'ks-list-filter-dropdown');
+                if (entering) {
+                    entering.style.opacity   = '0';
+                    entering.style.transform = 'translateY(-5px)';
+                    entering.getBoundingClientRect();
+                    entering.style.transition = EASING;
+                    entering.style.opacity    = '1';
+                    entering.style.transform  = 'translateY(0)';
+                    setTimeout(() => {
+                        entering.style.transition = '';
+                        entering.style.opacity    = '';
+                        entering.style.transform  = '';
+                    }, DURATION);
+                }
+            }
+
+            if (leaving) {
+                leaving.style.transition = 'opacity .15s ease, transform .15s ease';
+                leaving.style.opacity    = '0';
+                leaving.style.transform  = 'translateY(-5px)';
+                setTimeout(() => {
+                    leaving.style.transition = '';
+                    leaving.style.opacity    = '';
+                    leaving.style.transform  = '';
+                    doSwitch();
+                }, 150);
+            } else {
+                doSwitch();
+            }
+        });
+    }
+
+    // ── Recherche liste (dropdown toolbar) ───────────────────────────────
+    const listSearch = document.querySelector('.ks-list-search');
+    if (listSearch) {
+        listSearch.addEventListener('input', function () {
+            const q = this.value.toLowerCase().trim();
+            document.querySelectorAll('.ks-list-dropdown-items a[data-list-name]').forEach(a => {
+                a.style.display = a.dataset.listName.includes(q) ? '' : 'none';
+            });
+        });
+        listSearch.addEventListener('click', e => e.stopPropagation());
     }
 
 });

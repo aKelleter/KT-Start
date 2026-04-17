@@ -132,12 +132,4 @@ $bookmarkletJs = "javascript:(function(){var u=encodeURIComponent(location.href)
     </div>
 </div>
 
-<script>
-document.getElementById('btnCopyBookmarklet').addEventListener('click', function () {
-    navigator.clipboard.writeText(document.getElementById('bookmarkletCode').value).then(() => {
-        const icon = this.querySelector('i');
-        icon.className = 'bi bi-check-lg text-success';
-        setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 2000);
-    });
-});
-</script>
+<script src="<?= View::asset('js/admin/settings.js') ?>"></script>

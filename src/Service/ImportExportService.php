@@ -23,6 +23,7 @@ final class ImportExportService
             SELECT b.url, b.host, b.title, b.description,
                    b.badge_style, b.badge_text, b.tags,
                    b.visibility, b.position, b.created_at,
+                   b.folder_id,
                    l.name AS list_name
             FROM bookmarks b
             LEFT JOIN lists l ON l.id = b.list_id
@@ -32,10 +33,27 @@ final class ImportExportService
         $stmt->execute(['user_id' => $userId]);
         $bookmarks = $stmt->fetchAll();
 
+        $fStmt = $pdo->prepare("
+            SELECT f.id, f.name, f.parent_id, f.position, l.name AS list_name
+            FROM folders f
+            JOIN lists l ON l.id = f.list_id
+            WHERE f.user_id = :user_id
+            ORDER BY f.id ASC
+        ");
+        $fStmt->execute(['user_id' => $userId]);
+        $folders = $fStmt->fetchAll();
+
         return [
             'version'     => 1,
             'exported_at' => date('Y-m-d H:i:s'),
             'lists'       => array_column($lists, 'name'),
+            'folders'     => array_map(fn($f) => [
+                'id'        => (int) $f['id'],
+                'name'      => $f['name'],
+                'parent_id' => $f['parent_id'] !== null ? (int) $f['parent_id'] : null,
+                'position'  => (int) $f['position'],
+                'list_name' => $f['list_name'],
+            ], $folders),
             'bookmarks'   => array_map(fn($b) => [
                 'url'         => $b['url'],
                 'host'        => $b['host'],
@@ -46,6 +64,7 @@ final class ImportExportService
                 'tags'        => $b['tags'],
                 'visibility'  => $b['visibility'],
                 'list_name'   => $b['list_name'],
+                'folder_id'   => $b['folder_id'] !== null ? (int) $b['folder_id'] : null,
                 'position'    => (int) $b['position'],
                 'created_at'  => $b['created_at'],
             ], $bookmarks),
@@ -76,6 +95,23 @@ final class ImportExportService
             'is_default' => (bool) $l['is_default'],
         ], $pdo->query('SELECT name, is_default FROM lists ORDER BY name ASC')->fetchAll());
 
+        // Folders (tous utilisateurs)
+        $folders = array_map(fn($f) => [
+            'id'         => (int) $f['id'],
+            'name'       => $f['name'],
+            'parent_id'  => $f['parent_id'] !== null ? (int) $f['parent_id'] : null,
+            'position'   => (int) $f['position'],
+            'list_name'  => $f['list_name'],
+            'user_email' => $f['user_email'],
+        ], $pdo->query("
+            SELECT f.id, f.name, f.parent_id, f.position,
+                   l.name AS list_name, u.email AS user_email
+            FROM folders f
+            JOIN lists l ON l.id = f.list_id
+            JOIN users u ON u.id = f.user_id
+            ORDER BY f.id ASC
+        ")->fetchAll());
+
         // Bookmarks (tous utilisateurs)
         $bookmarks = array_map(fn($b) => [
             'url'          => $b['url'],
@@ -87,6 +123,7 @@ final class ImportExportService
             'tags'         => $b['tags'],
             'visibility'   => $b['visibility'],
             'list_name'    => $b['list_name'],
+            'folder_id'    => $b['folder_id'] !== null ? (int) $b['folder_id'] : null,
             'user_email'   => $b['user_email'],
             'position'     => (int) $b['position'],
             'created_at'   => $b['created_at'],
@@ -104,6 +141,7 @@ final class ImportExportService
             'settings'    => $settings,
             'users'       => $users,
             'lists'       => $lists,
+            'folders'     => $folders,
             'bookmarks'   => $bookmarks,
         ];
     }
@@ -122,6 +160,7 @@ final class ImportExportService
         $result = [
             'imported'         => 0,
             'lists_created'    => 0,
+            'folders_created'  => 0,
             'skipped'          => 0,
             'users_created'    => 0,
             'users_skipped'    => 0,
@@ -139,11 +178,12 @@ final class ImportExportService
         if ($fullRestore) {
             $this->truncateAll();
         } elseif ($version === 1) {
-            // Import favoris : vider bookmarks + listes avant réinsertion
+            // Import favoris : vider bookmarks + dossiers + listes avant réinsertion
             $pdo = Database::connection();
             $pdo->prepare('DELETE FROM bookmarks WHERE user_id = :uid')->execute(['uid' => $currentUserId]);
+            $pdo->prepare('DELETE FROM folders WHERE user_id = :uid')->execute(['uid' => $currentUserId]);
             $pdo->exec('DELETE FROM lists');
-            $pdo->exec("DELETE FROM sqlite_sequence WHERE name IN ('bookmarks', 'lists')");
+            $pdo->exec("DELETE FROM sqlite_sequence WHERE name IN ('bookmarks', 'folders', 'lists')");
         }
 
         if ($version === 2) {
@@ -155,8 +195,9 @@ final class ImportExportService
         // Pour v2 : on résout l'utilisateur par email (user_email dans chaque favori)
         $userEmailMap = $this->buildUserEmailMap();
 
-        $this->importLists($data['lists'] ?? [], $result);
-        $this->importBookmarks($data['bookmarks'] ?? [], $result, $currentUserId, $userEmailMap, $version);
+        $listMap = $this->importLists($data['lists'] ?? [], $result);
+        $folderIdMap = $this->importFolders($data['folders'] ?? [], $result, $listMap, $userEmailMap, $currentUserId, $version);
+        $this->importBookmarks($data['bookmarks'] ?? [], $result, $currentUserId, $userEmailMap, $version, $folderIdMap);
 
         return $result;
     }
@@ -166,13 +207,12 @@ final class ImportExportService
     private function truncateAll(): void
     {
         $pdo = Database::connection();
-        // Ordre : dépendances d'abord
         $pdo->exec('DELETE FROM bookmarks');
+        $pdo->exec('DELETE FROM folders');
         $pdo->exec('DELETE FROM lists');
         $pdo->exec('DELETE FROM settings');
         $pdo->exec('DELETE FROM users');
-        // Réinitialiser les séquences AUTOINCREMENT
-        $pdo->exec("DELETE FROM sqlite_sequence WHERE name IN ('bookmarks', 'lists', 'users')");
+        $pdo->exec("DELETE FROM sqlite_sequence WHERE name IN ('bookmarks', 'folders', 'lists', 'users')");
     }
 
     // ── Helpers d'import ─────────────────────────────────────────────────────
@@ -233,10 +273,11 @@ final class ImportExportService
         }
     }
 
-    private function importLists(mixed $lists, array &$result): void
+    /** @return array<string, int>  name → id */
+    private function importLists(mixed $lists, array &$result): array
     {
         if (!is_array($lists)) {
-            return;
+            return [];
         }
 
         $repo    = new ListRepository();
@@ -276,11 +317,94 @@ final class ImportExportService
         if ($defaultListName !== null && isset($listMap[$defaultListName])) {
             $repo->setDefault($listMap[$defaultListName]);
         }
+
+        return $listMap;
+    }
+
+    /**
+     * Recrée la hiérarchie de dossiers. Tri topologique BFS (parents avant enfants).
+     * @return array<int, int>  export_id → new_db_id
+     */
+    private function importFolders(
+        mixed $folders, array &$result,
+        array $listMap, array $userEmailMap,
+        int $currentUserId, int $version
+    ): array {
+        if (!is_array($folders) || empty($folders)) {
+            return [];
+        }
+
+        $repo        = new FolderRepository();
+        $folderIdMap = [];
+
+        // Indexer par export_id
+        $indexed = [];
+        foreach ($folders as $f) {
+            if (!is_array($f)) {
+                continue;
+            }
+            $eid = (int) ($f['id'] ?? 0);
+            if ($eid > 0) {
+                $indexed[$eid] = $f;
+            }
+        }
+
+        // BFS : commencer par les racines (parent_id null ou absent de l'export)
+        $remaining = $indexed;
+        $queue     = [];
+        foreach ($indexed as $eid => $f) {
+            $parentRef = isset($f['parent_id']) ? (int) $f['parent_id'] : null;
+            if ($parentRef === null || !isset($indexed[$parentRef])) {
+                $queue[] = $eid;
+                unset($remaining[$eid]);
+            }
+        }
+
+        while (!empty($queue)) {
+            $eid = array_shift($queue);
+            $f   = $indexed[$eid];
+
+            $listName = trim((string) ($f['list_name'] ?? ''));
+            $listId   = $listName !== '' ? ($listMap[$listName] ?? null) : null;
+            if ($listId === null) {
+                continue;
+            }
+
+            $userId = $currentUserId;
+            if ($version === 2 && isset($f['user_email'])) {
+                $userEmail = trim((string) $f['user_email']);
+                $userId    = $userEmailMap[$userEmail] ?? $currentUserId;
+            }
+
+            $parentRef   = isset($f['parent_id']) ? (int) $f['parent_id'] : null;
+            $newParentId = $parentRef !== null ? ($folderIdMap[$parentRef] ?? null) : null;
+
+            $name = trim((string) ($f['name'] ?? ''));
+            if ($name === '') {
+                $name = 'Dossier';
+            }
+
+            $newId               = $repo->create($userId, $listId, $newParentId, $name);
+            $folderIdMap[$eid]   = $newId;
+            $result['folders_created']++;
+
+            // Ajouter les enfants à la file
+            foreach ($remaining as $ceid => $cf) {
+                $cParent = isset($cf['parent_id']) ? (int) $cf['parent_id'] : null;
+                if ($cParent === $eid) {
+                    $queue[] = $ceid;
+                    unset($remaining[$ceid]);
+                }
+            }
+        }
+
+        return $folderIdMap;
     }
 
     private function importBookmarks(
         mixed $bookmarks, array &$result,
-        int $currentUserId, array $userEmailMap, int $version
+        int $currentUserId, array $userEmailMap, int $version,
+        array $folderIdMap = []
     ): void {
         if (!is_array($bookmarks)) {
             return;
@@ -337,6 +461,11 @@ final class ImportExportService
                 $userId = $currentUserId;
             }
 
+            $folderRef = isset($bm['folder_id']) && $bm['folder_id'] !== null
+                ? (int) $bm['folder_id']
+                : null;
+            $folderId = $folderRef !== null ? ($folderIdMap[$folderRef] ?? null) : null;
+
             $bmRepo->create([
                 'url'         => $url,
                 'host'        => trim((string) ($bm['host'] ?? parse_url($url, PHP_URL_HOST) ?? '')),
@@ -347,7 +476,7 @@ final class ImportExportService
                 'tags'        => substr(trim((string) ($bm['tags'] ?? '')), 0, 500),
                 'visibility'  => $visibility,
                 'list_id'     => $listId,
-                'folder_id'   => null,
+                'folder_id'   => $folderId,
                 'user_id'     => $userId,
                 'position'    => (int) ($bm['position'] ?? 0),
                 'created_at'  => $createdAt,

@@ -175,6 +175,11 @@ final class ImportExportService
             return $result;
         }
 
+        if ($fullRestore && $version !== 2) {
+            $result['errors'][] = 'La restauration complète nécessite un fichier backup v2. Utilisez "Import favoris" pour un export v1.';
+            return $result;
+        }
+
         if ($fullRestore) {
             $this->truncateAll();
         } elseif ($version === 1) {

@@ -30,14 +30,13 @@ use App\Core\View;
 
 <div class="ks-admin-card overflow-hidden p-0 mb-4">
 
-    <!-- Backup complet -->
     <div class="ks-backup-row d-flex align-items-center gap-3 px-4 py-3">
         <div class="ks-admin-icon flex-shrink-0" style="background:rgba(2,136,209,.10);color:#0288D1">
             <i class="bi bi-database-down"></i>
         </div>
         <div class="flex-grow-1">
-            <p class="fw-semibold mb-0" style="font-size:.925rem">Backup complet</p>
-            <p class="text-muted mb-0" style="font-size:.82rem">Utilisateurs, paramètres, listes et favoris (tous utilisateurs).</p>
+            <p class="fw-semibold mb-0" style="font-size:.925rem">Backup complet <span class="badge text-bg-primary ms-1" style="font-size:.7rem;vertical-align:middle">v2</span></p>
+            <p class="text-muted mb-0" style="font-size:.82rem">Utilisateurs, paramètres, listes et favoris — tous les comptes. À utiliser pour une restauration complète.</p>
         </div>
         <a href="?action=admin_export_full" class="btn btn-sm btn-primary flex-shrink-0">
             <i class="bi bi-database-down me-1"></i>Backup
@@ -46,14 +45,13 @@ use App\Core\View;
 
     <div class="ks-inset-divider"></div>
 
-    <!-- Export favoris -->
     <div class="ks-backup-row d-flex align-items-center gap-3 px-4 py-3">
         <div class="ks-admin-icon flex-shrink-0" style="background:rgba(2,136,209,.10);color:#0288D1">
             <i class="bi bi-download"></i>
         </div>
         <div class="flex-grow-1">
-            <p class="fw-semibold mb-0" style="font-size:.925rem">Favoris uniquement</p>
-            <p class="text-muted mb-0" style="font-size:.82rem">Vos favoris et listes au format JSON portable.</p>
+            <p class="fw-semibold mb-0" style="font-size:.925rem">Favoris uniquement <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
+            <p class="text-muted mb-0" style="font-size:.82rem">Vos favoris et listes au format JSON portable. Ne contient pas les comptes utilisateurs.</p>
         </div>
         <a href="?action=admin_export" class="btn btn-sm btn-outline-secondary flex-shrink-0">
             <i class="bi bi-download me-1"></i>Exporter
@@ -62,12 +60,10 @@ use App\Core\View;
 
 </div>
 
-<!-- ── Section Importer ───────────────────────────────────────────────────── -->
-<p class="ks-section-label">Importer</p>
+<!-- ── Section Importer — navigateur ─────────────────────────────────────── -->
+<p class="ks-section-label">Importer depuis un navigateur</p>
 
-<div class="ks-admin-card overflow-hidden p-0 mb-3">
-
-    <!-- Import HTML navigateur -->
+<div class="ks-admin-card overflow-hidden p-0 mb-4">
     <form method="post" action="?action=admin_import_html" enctype="multipart/form-data" id="importHtmlForm">
         <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
 
@@ -77,22 +73,21 @@ use App\Core\View;
                     <i class="bi bi-filetype-html"></i>
                 </div>
                 <div>
-                    <p class="fw-semibold mb-0" style="font-size:.925rem">Depuis un navigateur</p>
+                    <p class="fw-semibold mb-0" style="font-size:.925rem">Fichier navigateur</p>
                     <p class="text-muted mb-0" style="font-size:.82rem">
-                        Fichier HTML ou JSON Firefox — Chrome, Safari, Edge aussi. Les dossiers sont recréés dans la liste cible.
+                        HTML Netscape ou JSON Firefox — compatible Chrome, Safari, Edge. Les dossiers sont recréés dans la liste cible.
                     </p>
                 </div>
             </div>
-            <!-- Contrôles import HTML -->
-            <!-- Ligne 1 : fichier -->
-            <div class="ps-1 mb-2">
+
+            <div class="ks-inset-divider"></div>
+            
+            <div class="ps-1 mt-3 mb-2">
                 <input type="file" class="form-control form-control-sm" name="import_html_file"
                        accept=".html,.htm,.json,text/html,application/json" required style="max-width:300px">
             </div>
-            <!-- Ligne 2 : destination + bouton -->
             <div class="d-flex flex-wrap align-items-center gap-3 ps-1">
                 <span class="small text-muted flex-shrink-0">Ajouter à</span>
-                <!-- Choix liste existante -->
                 <div class="d-flex align-items-center gap-2">
                     <input class="form-check-input mt-0 flex-shrink-0" type="radio" name="html_list_choice"
                            id="htmlListExisting" value="existing" checked>
@@ -107,7 +102,6 @@ use App\Core\View;
                     </select>
                 </div>
                 <span class="small text-muted">ou</span>
-                <!-- Choix nouvelle liste -->
                 <div class="d-flex align-items-center gap-2">
                     <input class="form-check-input mt-0 flex-shrink-0" type="radio" name="html_list_choice"
                            id="htmlListNew" value="new">
@@ -150,15 +144,16 @@ use App\Core\View;
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
-
     </form>
+</div>
 
-    <div class="ks-inset-divider"></div>
+<!-- ── Section Importer — favoris KT-Start (v1) ──────────────────────────── -->
+<p class="ks-section-label">Importer des favoris KT-Start</p>
 
-    <!-- Import JSON KT-Start -->
+<div class="ks-admin-card overflow-hidden p-0 mb-4">
     <form method="post" action="?action=admin_import" enctype="multipart/form-data" id="importForm">
         <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
-        <input type="hidden" name="full_restore" id="fullRestoreInput" value="0">
+        <input type="hidden" name="full_restore" value="0">
 
         <div class="ks-backup-row px-4 py-3">
             <div class="d-flex align-items-center gap-3 mb-3">
@@ -166,29 +161,22 @@ use App\Core\View;
                     <i class="bi bi-upload"></i>
                 </div>
                 <div>
-                    <p class="fw-semibold mb-0" style="font-size:.925rem">Depuis KT-Start (JSON)</p>
+                    <p class="fw-semibold mb-0" style="font-size:.925rem">Export favoris <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
                     <p class="text-muted mb-0" style="font-size:.82rem">
-                        Export favoris (v1) : remplace vos listes et favoris.&ensp;·&ensp;Backup complet (v2) : utilisez "Restauration complète".
+                        Importe un fichier <code>ktstart-bookmarks-*.json</code>. Vos listes et favoris actuels sont remplacés — les comptes utilisateurs ne sont pas modifiés.
                     </p>
                 </div>
             </div>
-            <div class="d-flex flex-wrap align-items-center gap-2 ps-1">
+
+            <div class="ks-inset-divider"></div>
+
+            <div class="d-flex flex-wrap align-items-center gap-2 ps-1 mt-3">
                 <input type="file" class="form-control form-control-sm" name="import_file"
-                       accept=".json,application/json" required style="max-width:240px">
+                       accept=".json,application/json" required style="max-width:280px">
                 <button type="submit" class="btn btn-sm btn-primary" id="btnImport">
                     <span id="btnImportSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
                     <i class="bi bi-upload me-1" id="btnImportIcon"></i><span id="btnImportLabel">Importer</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-danger" id="btnFullRestore">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restauration complète
-                </button>
-            </div>
-
-            <div id="fullRestoreWarning" class="alert alert-danger py-2 px-3 mb-0 mt-3 small d-none" role="alert">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <strong>Attention :</strong> toutes les données existantes (favoris, listes, utilisateurs, paramètres)
-                seront <strong>définitivement effacées</strong> avant l'import.
-                Vous serez déconnecté à l'issue de l'opération.
             </div>
         </div>
 
@@ -212,24 +200,6 @@ use App\Core\View;
                 <?= $importResult['folders_created'] ?> dossier<?= $importResult['folders_created'] > 1 ? 's' : '' ?> créé<?= $importResult['folders_created'] > 1 ? 's' : '' ?>
             </div>
             <?php endif; ?>
-            <?php if (!empty($importResult['users_created'])): ?>
-            <div class="ks-migration-line">
-                <i class="bi bi-person-check-fill text-success me-2"></i>
-                <?= $importResult['users_created'] ?> utilisateur<?= $importResult['users_created'] > 1 ? 's' : '' ?> créé<?= $importResult['users_created'] > 1 ? 's' : '' ?>
-            </div>
-            <?php endif; ?>
-            <?php if (!empty($importResult['users_skipped'])): ?>
-            <div class="ks-migration-line">
-                <i class="bi bi-person-dash text-muted me-2"></i>
-                <?= $importResult['users_skipped'] ?> utilisateur<?= $importResult['users_skipped'] > 1 ? 's' : '' ?> ignoré<?= $importResult['users_skipped'] > 1 ? 's' : '' ?> (email déjà existant)
-            </div>
-            <?php endif; ?>
-            <?php if (!empty($importResult['settings_updated'])): ?>
-            <div class="ks-migration-line">
-                <i class="bi bi-sliders text-primary me-2"></i>
-                <?= $importResult['settings_updated'] ?> paramètre<?= $importResult['settings_updated'] > 1 ? 's' : '' ?> restauré<?= $importResult['settings_updated'] > 1 ? 's' : '' ?>
-            </div>
-            <?php endif; ?>
             <?php if ($importResult['skipped'] > 0): ?>
             <div class="ks-migration-line">
                 <i class="bi bi-exclamation-circle-fill text-warning me-2"></i>
@@ -243,9 +213,79 @@ use App\Core\View;
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
-
     </form>
+</div>
 
+<!-- ── Section Restauration complète (v2) ────────────────────────────────── -->
+<p class="ks-section-label">Restauration complète</p>
+
+<div class="ks-admin-card overflow-hidden p-0 mb-4" style="border:1px solid rgba(220,53,69,.25)">
+    <form method="post" action="?action=admin_import" enctype="multipart/form-data" id="restoreForm">
+        <input type="hidden" name="_csrf" value="<?= View::e($csrf) ?>">
+        <input type="hidden" name="full_restore" value="1">
+
+        <div class="ks-backup-row px-4 py-3">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="ks-admin-icon flex-shrink-0" style="background:rgba(220,53,69,.10);color:#dc3545">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </div>
+                <div>
+                    <p class="fw-semibold mb-0" style="font-size:.925rem">Restaurer depuis un backup <span class="badge text-bg-primary ms-1" style="font-size:.7rem;vertical-align:middle">v2</span></p>
+                    <p class="text-muted mb-0" style="font-size:.82rem">
+                        Nécessite un fichier <code>ktstart-backup-*.json</code>. <strong class="text-danger">Toutes les données existantes sont effacées</strong> (comptes, listes, favoris, paramètres) avant la restauration. Vous serez déconnecté à l'issue.
+                    </p>
+                </div>
+            </div>
+
+            <div class="ks-inset-divider"></div>
+
+            <div class="d-flex flex-wrap align-items-center gap-2 ps-1 mt-3">
+                <input type="file" class="form-control form-control-sm" name="import_file" id="restoreFileInput"
+                       accept=".json,application/json" required style="max-width:280px">
+                <button type="button" class="btn btn-sm btn-outline-danger" id="btnRestore"
+                        data-bs-toggle="modal" data-bs-target="#restoreConfirmModal">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurer…
+                </button>
+            </div>
+        </div>
+
+        <?php if (!empty($importResult) && !empty($importResult['errors'])): ?>
+        <div class="ks-migration-log mx-4 mb-3 mt-0" style="border-radius:10px">
+            <?php foreach ($importResult['errors'] as $err): ?>
+            <div class="ks-migration-line">
+                <i class="bi bi-x-circle-fill text-danger me-2"></i><?= View::e($err) ?>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </form>
+</div>
+
+<!-- ── Modal confirmation restauration (style iOS) ───────────────────────── -->
+<div class="modal fade" id="restoreConfirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:340px">
+        <div class="modal-content" style="border-radius:14px;overflow:hidden;border:none;box-shadow:0 8px 40px rgba(0,0,0,.18)">
+            <div class="modal-body text-center px-4 pt-4 pb-3">
+                <p class="fw-bold mb-1" style="font-size:1rem">Restauration complète</p>
+                <p class="text-muted mb-0" style="font-size:.85rem;line-height:1.45">
+                    Toutes les données actuelles (comptes, listes, favoris, paramètres) seront
+                    <strong>définitivement effacées</strong> et remplacées par le contenu du fichier backup.
+                    Vous serez déconnecté à l'issue.
+                </p>
+            </div>
+            <div style="border-top:1px solid var(--bs-border-color);display:flex">
+                <button type="button" class="btn btn-link flex-fill py-2" data-bs-dismiss="modal"
+                        style="border-right:1px solid var(--bs-border-color);border-radius:0;font-size:.95rem;text-decoration:none">
+                    Annuler
+                </button>
+                <button type="button" class="btn btn-link flex-fill py-2 text-danger fw-semibold" id="btnConfirmRestore"
+                        style="border-radius:0;font-size:.95rem;text-decoration:none">
+                    <span id="btnConfirmRestoreSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status"></span>
+                    Restaurer
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ── JS ─────────────────────────────────────────────────────────────────── -->

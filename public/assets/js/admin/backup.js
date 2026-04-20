@@ -26,45 +26,50 @@
         });
     }
 
-    // ── Restauration complète ────────────────────────────────────────────────
-    const btnFullRestore     = document.getElementById('btnFullRestore');
-    const fullRestoreInput   = document.getElementById('fullRestoreInput');
-    const fullRestoreWarning = document.getElementById('fullRestoreWarning');
-    const importForm         = document.getElementById('importForm');
-
-    if (btnFullRestore) {
-        btnFullRestore.addEventListener('click', function () {
-            if (fullRestoreInput.value === '1') {
-                if (confirm('Confirmer la restauration complète ?\n\nToutes les données actuelles seront effacées et remplacées par le contenu du fichier. Cette action est irréversible.')) {
-                    showImportSpinner(true);
-                    importForm.submit();
-                }
-            } else {
-                fullRestoreInput.value = '1';
-                fullRestoreWarning.classList.remove('d-none');
-                btnFullRestore.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-1"></i>Confirmer la restauration';
-                btnFullRestore.classList.replace('btn-outline-danger', 'btn-danger');
-                document.getElementById('btnImport').classList.add('d-none');
-            }
+    // ── Spinner import favoris v1 ────────────────────────────────────────────
+    const importForm = document.getElementById('importForm');
+    if (importForm) {
+        importForm.addEventListener('submit', function () {
+            const spinner = document.getElementById('btnImportSpinner');
+            const icon    = document.getElementById('btnImportIcon');
+            const label   = document.getElementById('btnImportLabel');
+            const btn     = document.getElementById('btnImport');
+            spinner.classList.remove('d-none');
+            icon.classList.add('d-none');
+            label.textContent = 'Import en cours…';
+            btn.disabled = true;
         });
     }
 
-    // ── Spinner import JSON ──────────────────────────────────────────────────
-    function showImportSpinner(forRestore) {
-        const spinner = document.getElementById('btnImportSpinner');
-        const icon    = document.getElementById('btnImportIcon');
-        const label   = document.getElementById('btnImportLabel');
-        const btn     = document.getElementById('btnImport');
-        spinner.classList.remove('d-none');
-        icon.classList.add('d-none');
-        label.textContent = forRestore ? 'Restauration…' : 'Import en cours…';
-        btn.disabled = true;
-        btnFullRestore.disabled = true;
+    // ── Restauration complète — modal iOS ────────────────────────────────────
+    const btnRestore      = document.getElementById('btnRestore');
+    const restoreFileInput = document.getElementById('restoreFileInput');
+    const btnConfirm      = document.getElementById('btnConfirmRestore');
+    const restoreForm     = document.getElementById('restoreForm');
+
+    // Bloquer l'ouverture de la modale si aucun fichier sélectionné
+    if (btnRestore) {
+        btnRestore.addEventListener('click', function (e) {
+            if (!restoreFileInput || !restoreFileInput.files.length) {
+                e.stopImmediatePropagation();
+                restoreFileInput.classList.add('is-invalid');
+                restoreFileInput.focus();
+                return;
+            }
+            restoreFileInput.classList.remove('is-invalid');
+        });
+
+        restoreFileInput.addEventListener('change', function () {
+            restoreFileInput.classList.remove('is-invalid');
+        });
     }
 
-    if (importForm) {
-        importForm.addEventListener('submit', function () {
-            showImportSpinner(fullRestoreInput.value === '1');
+    if (btnConfirm && restoreForm) {
+        btnConfirm.addEventListener('click', function () {
+            const spinner = document.getElementById('btnConfirmRestoreSpinner');
+            btnConfirm.disabled = true;
+            spinner.classList.remove('d-none');
+            restoreForm.submit();
         });
     }
 

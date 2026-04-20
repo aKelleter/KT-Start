@@ -87,21 +87,24 @@ L'interface d'administration est organisée en 9 sous-pages indépendantes acces
 - **Statistiques** : cartes résumé (total, publics, privés, utilisateurs, listes, tags), graphique barres mensuel sur 12 mois (CSS pur), répartitions par liste / statut des liens / top 15 tags / utilisateur / style de badge
 - **Vérification des liens** : raccourci vers le rapport d'accessibilité — badge rouge sur la carte indiquant le nombre de liens morts (tous utilisateurs)
 - **Maintenance** : migration de base de données idempotente depuis l'interface, journal de résultat affiché
-- **Sauvegarde** : export/import JSON avec trois scénarios + import depuis navigateur (voir ci-dessous)
+- **Sauvegarde** : export/import JSON avec quatre sections distinctes + import depuis navigateur (voir ci-dessous)
 - Toutes les actions admin protégées CSRF et réservées au rôle `admin`
 
 ### Sauvegarde et restauration
 
 | Action | Fichier produit | Contenu |
 |---|---|---|
-| **Backup complet** | `ktstart-backup-YYYYMMDD-HHmmss.json` | users + settings + lists (avec liste par défaut) + bookmarks (tous utilisateurs) |
-| **Export favoris** | `ktstart-bookmarks-YYYYMMDD-HHmmss.json` | lists + bookmarks (utilisateur courant) — portable entre instances |
+| **Backup complet** `v2` | `ktstart-backup-YYYYMMDD-HHmmss.json` | users + settings + lists (avec liste par défaut) + bookmarks (tous utilisateurs) |
+| **Export favoris** `v1` | `ktstart-bookmarks-YYYYMMDD-HHmmss.json` | lists + bookmarks (utilisateur courant) — portable entre instances |
 
-**Import JSON KT-Start** (détection automatique du format v1/v2) :
+La page Sauvegarde est organisée en **quatre sections indépendantes** :
 
-- **Export favoris (v1)** : supprime les bookmarks et listes existants, réinitialise les séquences, réinsère les listes puis les bookmarks
-- **Backup complet (v2) — import normal** : crée les users/listes manquants (skip si existant), upsert les settings, ajoute les bookmarks
-- **Backup complet (v2) — Restauration complète** : purge toutes les tables, réinitialise les séquences, réinsère tout — session détruite, reconnexion requise
+1. **Exporter** — Backup complet (v2) ou export favoris (v1)
+2. **Importer depuis un navigateur** — HTML Netscape ou JSON Firefox
+3. **Import favoris KT-Start** (`v1`) — remplace listes et favoris, conserve les comptes utilisateurs
+4. **Restauration complète** (`v2` uniquement) — section distincte avec bordure danger ; purge toutes les tables (users, listes, favoris, paramètres), réinitialise les séquences, réinsère tout depuis le backup — session détruite, reconnexion requise
+
+> **Protection** : la restauration complète est bloquée côté serveur si le fichier fourni n'est pas un backup v2 — un export favoris v1 ne peut pas déclencher une purge des comptes utilisateurs.
 
 **Import depuis un navigateur** (détection automatique du format) :
 

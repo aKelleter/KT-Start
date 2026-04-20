@@ -180,7 +180,7 @@ Accès via subdirectoire : `http://localhost:8080/KT-Start/`
 - `templates/admin/lists.php` — gestion listes (table + modal + bouton ⭐ défaut + filtre live)
 - `templates/admin/folders.php` — gestion dossiers : sélecteur de liste, arbre hiérarchique récursif (`$renderTree`), drag & drop SortableJS (réorganisation + nidification), modals créer/renommer/supprimer, debounce 600ms, badge email propriétaire, anti-cycle (`wouldCreateCycleAdmin`)
 - `templates/admin/settings.php` — paramètres (bookmarks_per_page, proxy + case à cocher `check_proxy_enabled`) + section bookmarklet avec bouton à glisser et code copiable (généré depuis `APP_URL`)
-- `templates/admin/backup.php` — deux sections "Exporter" / "Importer" (cards groupées iOS, section labels, dividers insets) ; export v1/v2 ; import JSON KT-Start (v1/v2) + restauration complète ; import navigateur HTML/JSON Firefox avec sélecteur de liste cible
+- `templates/admin/backup.php` — quatre sections indépendantes : "Exporter" (backup v2 + export v1, badges de version affichés) ; "Importer depuis un navigateur" (HTML/JSON Firefox, form `importHtmlForm`) ; "Importer des favoris KT-Start" (v1 seulement, `full_restore=0` hardcodé, form `importForm`) ; "Restauration complète" (v2 obligatoire, bordure danger `rgba(220,53,69,.25)`, form `restoreForm` avec `full_restore=1` hardcodé, bouton "Restaurer…" ouvre modal iOS `#restoreConfirmModal` — bloqué JS si aucun fichier sélectionné) ; confirmations via modal style iOS (titre + sous-titre centrés, Annuler / Restaurer, plus de `confirm()` natif)
 - `templates/admin/maintenance.php` — migration runner + journal
 - `templates/admin/tags.php` — table triée par fréquence, filtre live, modal renommer, bouton supprimer, bouton "Nettoyer (N unique(s))"
 - `templates/admin/stats.php` — 6 cartes résumé, graphique barres mensuel (12 mois, CSS pur), répartitions par liste / statut liens / top tags / utilisateur / style de badge
@@ -228,6 +228,7 @@ Fichier : `public/assets/css/app.css`
 - **Import/Export** : `ImportExportService` — deux formats JSON :
   - v1 (`ktstart-bookmarks-*.json`) : lists + bookmarks user courant — à l'import : DELETE bookmarks (user) + DELETE lists + reset `sqlite_sequence` → réinsère
   - v2 (`ktstart-backup-*.json`) : users + settings + lists (avec `is_default`) + bookmarks tous users — import normal = merge ; `full_restore=1` = purge totale + reset `sqlite_sequence` + session_destroy
+  - **Guard `full_restore` + v1** : si `$fullRestore === true` et `$version !== 2`, `import()` retourne une erreur immédiatement sans appeler `truncateAll()` — empêche la perte de tous les comptes utilisateurs
   - `badge_style` non validé à l'import (préservation des anciens styles hérités)
   - `is_default` exporté en v2 en objet `{name, is_default}`, restauré via `setDefault()` après création des listes
   - `sqlite_sequence` réinitialisée via `DELETE FROM sqlite_sequence WHERE name IN (...)` pour repartir à id=1

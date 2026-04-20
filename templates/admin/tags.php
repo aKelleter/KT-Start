@@ -122,5 +122,23 @@ use App\Core\View;
     <input type="hidden" name="tag" id="tagDeleteName">
 </form>
 
+<!-- ── Modal de confirmation (style iOS) ─────────────────────────────────── -->
+<div class="modal fade" id="tagConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:320px">
+        <div class="modal-content rounded-4 overflow-hidden border-0 shadow">
+            <div class="modal-body text-center px-4 pt-4 pb-3">
+                <p class="fw-semibold mb-1" id="tagConfirmTitle"></p>
+                <p class="text-muted small mb-0" id="tagConfirmSubtitle"></p>
+            </div>
+            <div class="border-top d-flex" style="height:44px">
+                <button type="button" class="btn btn-link flex-fill text-secondary fw-normal border-end rounded-0"
+                        data-bs-dismiss="modal" id="tagConfirmCancel">Annuler</button>
+                <button type="button" class="btn btn-link flex-fill text-danger fw-semibold rounded-0"
+                        id="tagConfirmOk">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ── JS ─────────────────────────────────────────────────────────────────── -->
 <script src="<?= View::asset('js/admin/tags.js') ?>"></script>

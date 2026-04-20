@@ -19,23 +19,42 @@
             document.getElementById('tagModalInfo').textContent =
                 'Tag « ' + tag + ' » utilisé dans ' + count + ' favori' + (count > 1 ? 's' : '') + '.';
 
-            new bootstrap.Modal(document.getElementById('tagModal')).show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('tagModal')).show();
         });
     });
 
+    function showConfirm(title, subtitle, onConfirm) {
+        document.getElementById('tagConfirmTitle').textContent    = title;
+        document.getElementById('tagConfirmSubtitle').textContent = subtitle;
+
+        const modal  = bootstrap.Modal.getOrCreateInstance(document.getElementById('tagConfirmModal'));
+        const okBtn  = document.getElementById('tagConfirmOk');
+        const newBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newBtn, okBtn);
+        newBtn.addEventListener('click', function () {
+            modal.hide();
+            onConfirm();
+        });
+        modal.show();
+    }
+
     document.getElementById('btnDeleteUnique')?.addEventListener('click', function () {
-        const n = this.title.match(/\d+/) ? this.title.match(/\d+/)[0] : '?';
-        if (confirm('Supprimer ' + n + ' tag(s) utilisés par un seul favori ?\n\nCette action est irréversible.')) {
-            document.getElementById('deleteUniqueForm').submit();
-        }
+        const n = (this.title.match(/\d+/) ?? ['?'])[0];
+        showConfirm(
+            'Nettoyer ' + n + ' tag' + (n > 1 ? 's' : '') + ' solitaire' + (n > 1 ? 's' : '') + ' ?',
+            'Ces tags ne sont utilisés que par un seul favori. Cette action est irréversible.',
+            () => document.getElementById('deleteUniqueForm').submit()
+        );
     });
 
     document.getElementById('btnTagDelete')?.addEventListener('click', function () {
         const tag = document.getElementById('tagOld').value;
-        if (confirm('Supprimer le tag « ' + tag + ' » de tous les favoris ?\n\nCette action est irréversible.')) {
-            bootstrap.Modal.getInstance(document.getElementById('tagModal'))?.hide();
-            document.getElementById('tagDeleteForm').submit();
-        }
+        bootstrap.Modal.getInstance(document.getElementById('tagModal'))?.hide();
+        showConfirm(
+            'Supprimer le tag « ' + tag + ' » ?',
+            'Ce tag sera retiré de tous les favoris. Cette action est irréversible.',
+            () => document.getElementById('tagDeleteForm').submit()
+        );
     });
 
 })();

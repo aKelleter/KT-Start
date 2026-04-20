@@ -517,6 +517,10 @@ final class AdminController
             Flash::set('success', 'Liste par défaut définie.');
         }
 
+        // Invalider la liste mémorisée en session pour que la page bookmarks
+        // reflète immédiatement la nouvelle liste par défaut
+        unset($_SESSION['ktstart_list']);
+
         Response::redirect('?action=admin_lists');
     }
 

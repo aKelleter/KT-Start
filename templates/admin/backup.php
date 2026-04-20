@@ -32,14 +32,14 @@ use App\Core\View;
 
     <div class="ks-backup-row d-flex align-items-center gap-3 px-4 py-3">
         <div class="ks-admin-icon flex-shrink-0" style="background:rgba(2,136,209,.10);color:#0288D1">
-            <i class="bi bi-database-down"></i>
+            <i class="bi bi-database-up"></i>
         </div>
         <div class="flex-grow-1">
-            <p class="fw-semibold mb-0" style="font-size:.925rem">Backup complet <span class="badge text-bg-primary ms-1" style="font-size:.7rem;vertical-align:middle">v2</span></p>
+            <p class="fw-semibold mb-0" style="font-size:.925rem">Export Backup Complet <span class="badge text-bg-primary ms-1" style="font-size:.7rem;vertical-align:middle">v2</span></p>
             <p class="text-muted mb-0" style="font-size:.82rem">Utilisateurs, paramètres, listes et favoris — tous les comptes. À utiliser pour une restauration complète.</p>
         </div>
         <a href="?action=admin_export_full" class="btn btn-sm btn-primary flex-shrink-0">
-            <i class="bi bi-database-down me-1"></i>Backup
+            <i class="bi bi-database-up me-1"></i>Backup
         </a>
     </div>
 
@@ -47,14 +47,14 @@ use App\Core\View;
 
     <div class="ks-backup-row d-flex align-items-center gap-3 px-4 py-3">
         <div class="ks-admin-icon flex-shrink-0" style="background:rgba(2,136,209,.10);color:#0288D1">
-            <i class="bi bi-download"></i>
+            <i class="bi bi-upload"></i>
         </div>
         <div class="flex-grow-1">
-            <p class="fw-semibold mb-0" style="font-size:.925rem">Favoris uniquement <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
+            <p class="fw-semibold mb-0" style="font-size:.925rem">Export Favoris Uniquement <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
             <p class="text-muted mb-0" style="font-size:.82rem">Vos favoris et listes au format JSON portable. Ne contient pas les comptes utilisateurs.</p>
         </div>
         <a href="?action=admin_export" class="btn btn-sm btn-outline-secondary flex-shrink-0">
-            <i class="bi bi-download me-1"></i>Exporter
+            <i class="bi bi-upload me-1"></i>Exporter
         </a>
     </div>
 
@@ -158,10 +158,10 @@ use App\Core\View;
         <div class="ks-backup-row px-4 py-3">
             <div class="d-flex align-items-center gap-3 mb-3">
                 <div class="ks-admin-icon flex-shrink-0" style="background:rgba(99,102,241,.10);color:#6366f1">
-                    <i class="bi bi-upload"></i>
+                    <i class="bi bi-download"></i>
                 </div>
                 <div>
-                    <p class="fw-semibold mb-0" style="font-size:.925rem">Export favoris <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
+                    <p class="fw-semibold mb-0" style="font-size:.925rem">Importer des favoris <span class="badge text-bg-secondary ms-1" style="font-size:.7rem;vertical-align:middle">v1</span></p>
                     <p class="text-muted mb-0" style="font-size:.82rem">
                         Importe un fichier <code>ktstart-bookmarks-*.json</code>. Vos listes et favoris actuels sont remplacés — les comptes utilisateurs ne sont pas modifiés.
                     </p>
@@ -175,7 +175,7 @@ use App\Core\View;
                        accept=".json,application/json" required style="max-width:280px">
                 <button type="submit" class="btn btn-sm btn-primary" id="btnImport">
                     <span id="btnImportSpinner" class="spinner-border spinner-border-sm me-1 d-none" role="status" aria-hidden="true"></span>
-                    <i class="bi bi-upload me-1" id="btnImportIcon"></i><span id="btnImportLabel">Importer</span>
+                    <i class="bi bi-download me-1" id="btnImportIcon"></i><span id="btnImportLabel">Importer</span>
                 </button>
             </div>
         </div>

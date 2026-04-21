@@ -2,3 +2,4 @@ vendor/
 .env.local
 database/*.sqlite
 storage/log/*.log
+.phpunit.result.cache

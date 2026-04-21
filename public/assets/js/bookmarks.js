@@ -444,7 +444,41 @@ const _ks = JSON.parse(document.getElementById('ks-data')?.textContent || '{}');
             document.querySelectorAll('.ks-badges-grid').forEach(el => makeSortable(el, '.ks-badge'));
         }
 
-        document.querySelectorAll('.ks-compact-list').forEach(el => makeSortable(el, '.ks-compact-item'));
+        const compactLists = document.querySelectorAll('.ks-compact-list');
+        const hasCompactFolders = [...compactLists].some(el => el.dataset.folderId !== undefined);
+        if (hasCompactFolders && typeof Sortable !== 'undefined') {
+            async function saveCompactContainer(container) {
+                const cListId = parseInt(container.dataset.listId || '0', 10);
+                if (!cListId) return;
+                const folderRaw = container.dataset.folderId;
+                const parentId = (folderRaw === '' || folderRaw === undefined) ? null : parseInt(folderRaw, 10);
+                const items = [...container.querySelectorAll(':scope > .ks-compact-item')]
+                    .map(el => ({ type: 'bookmark', id: parseInt(el.dataset.id, 10) }))
+                    .filter(i => i.id);
+                try {
+                    await fetch('?action=bookmark_explorer_reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ _csrf: csrf, list_id: cListId, parent_id: parentId, items }),
+                    });
+                } catch (e) { console.error('Erreur sauvegarde liste:', e); }
+            }
+            compactLists.forEach(el => {
+                new Sortable(el, {
+                    group: 'ks-compact',
+                    handle: '.ks-drag-handle',
+                    animation: 150,
+                    ghostClass: 'ks-sortable-ghost',
+                    chosenClass: 'ks-sortable-chosen',
+                    onEnd(evt) {
+                        saveCompactContainer(evt.to);
+                        if (evt.from !== evt.to) saveCompactContainer(evt.from);
+                    },
+                });
+            });
+        } else {
+            compactLists.forEach(el => makeSortable(el, '.ks-compact-item'));
+        }
         makeSortable(document.querySelector('table tbody'), 'tr');
     }
 

@@ -698,7 +698,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
             $hasSubFolders = !empty($foldersByParent[$fid]);
             $folderHeader($folder, $readOnly, 0); // le wrapper gère l'indentation
             if (!empty($bmByFolder[$fid])) {
-                echo '<div class="ks-compact-list mb-2">';
+                echo '<div class="ks-compact-list mb-2" data-folder-id="' . $fid . '" data-list-id="' . (int)$listId . '">';
                 foreach ($bmByFolder[$fid] as $bm) { $renderListItem($bm); }
                 echo '</div>';
             }
@@ -719,7 +719,7 @@ $renderListItem = function(array $bm) use ($readOnly, $sort, $q): void {
             <span class="text-muted fw-semibold">Sans dossier</span>
         </div>
         <?php endif; ?>
-        <div class="ks-compact-list mb-2">
+        <div class="ks-compact-list mb-2" data-folder-id="" data-list-id="<?= (int) $listId ?>">
             <?php foreach ($bmByFolder[0] as $bm): ?><?php $renderListItem($bm); ?><?php endforeach; ?>
         </div>
     <?php endif; ?>

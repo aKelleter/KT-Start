@@ -3,10 +3,13 @@
 use App\Config\Config;
 use App\Core\Auth;
 use App\Core\View;
+use App\Repository\SettingsRepository;
 
 $appName    = Config::get('APP_NAME', 'KT-Start');
 $appVersion = Config::get('APP_VERSION', '1.0.0');
 $appUpdate  = Config::get('APP_UPDATE', '');
+
+$flashDurationMs = (int) (new SettingsRepository())->get('flash_duration', '3') * 1000;
 ?>
 <!DOCTYPE html>
 <html lang="fr" id="html-root">
@@ -33,7 +36,7 @@ $appUpdate  = Config::get('APP_UPDATE', '');
         })();
     </script>
 </head>
-<body class="app-body">
+<body class="app-body" data-flash-duration="<?= $flashDurationMs ?>">
 
 <div class="app-shell">
 

@@ -178,10 +178,16 @@ final class AdminController
             $this->fail('Valeur invalide (1–500).', '?action=admin_settings');
         }
 
+        $flashDuration = (int) ($_POST['flash_duration'] ?? 3);
+        if ($flashDuration < 0 || $flashDuration > 30) {
+            $this->fail('Durée d\'affichage invalide (0–30).', '?action=admin_settings');
+        }
+
         $repo = new SettingsRepository();
         $repo->set('bookmarks_per_page', (string) $perPage);
         $repo->set('check_proxy', trim($_POST['check_proxy'] ?? ''));
         $repo->set('check_proxy_enabled', isset($_POST['check_proxy_enabled']) ? '1' : '0');
+        $repo->set('flash_duration', (string) $flashDuration);
 
         Flash::set('success', 'Paramètres enregistrés.');
         Response::redirect('?action=admin_settings');

@@ -12,6 +12,11 @@
             '<div class="alert alert-' + type + ' alert-dismissible fade show mb-4 text-center" role="alert">' +
             message +
             '<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+
+        const alertEl = flashContainer.querySelector('.alert');
+        if (alertEl && window.ksAutoDismissFlash) {
+            window.ksAutoDismissFlash(alertEl);
+        }
     }
 
     async function submitAjax(form) {

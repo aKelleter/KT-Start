@@ -88,6 +88,26 @@ use App\Core\View;
             </div>
         </div>
 
+        <hr class="my-3">
+
+        <div class="row align-items-center g-3">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Durée d'affichage des messages</label>
+                <div class="input-group">
+                    <input type="number" class="form-control" name="flash_duration"
+                           min="0" max="30"
+                           value="<?= (int) ($settings['flash_duration'] ?? 3) ?>">
+                    <span class="input-group-text">secondes</span>
+                </div>
+                <div class="form-text">0 = ne jamais masquer automatiquement.</div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
+                </button>
+            </div>
+        </div>
+
     </form>
 </div>
 

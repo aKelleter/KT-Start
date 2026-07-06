@@ -10,12 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Auto-dismiss flash ────────────────────────────────────────────────
-    document.querySelectorAll('.alert-dismissible').forEach(alert => {
+    // Durée configurable depuis Admin → Paramètres (0 = désactivé), portée par
+    // data-flash-duration sur <body>. Exposée globalement pour les messages
+    // injectés dynamiquement en JS (ex. admin/lists.js).
+    const flashDuration = parseInt(document.body.dataset.flashDuration || '3000', 10);
+
+    function autoDismissFlash(alert) {
+        if (!flashDuration || flashDuration <= 0) {
+            return;
+        }
         setTimeout(() => {
             alert.classList.add('flash-hide');
             setTimeout(() => alert.remove(), 450);
-        }, 4000);
-    });
+        }, flashDuration);
+    }
+    window.ksAutoDismissFlash = autoDismissFlash;
+
+    document.querySelectorAll('.alert-dismissible').forEach(autoDismissFlash);
 
     // ── Dark mode toggle ──────────────────────────────────────────────────
     const themeToggle = document.getElementById('ks-theme-toggle');

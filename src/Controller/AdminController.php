@@ -22,6 +22,12 @@ final class AdminController
     private function requireAdmin(): void
     {
         if (!Auth::isAdmin()) {
+            if ($this->isAjax()) {
+                header('Content-Type: application/json');
+                http_response_code(403);
+                echo json_encode(['ok' => false, 'message' => 'Session expirée.']);
+                exit;
+            }
             Response::redirect('?action=bookmarks');
         }
     }
@@ -35,8 +41,53 @@ final class AdminController
 
     private function fail(string $message, string $redirectTo): never
     {
+        if ($this->isAjax()) {
+            header('Content-Type: application/json');
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => $message]);
+            exit;
+        }
         Flash::set('danger', $message);
         Response::redirect($redirectTo);
+    }
+
+    private function isAjax(): bool
+    {
+        return ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest';
+    }
+
+    private function renderPartial(string $template, array $data): string
+    {
+        extract($data, EXTR_SKIP);
+        ob_start();
+        require BASE_PATH . '/templates/' . $template . '.php';
+        return (string) ob_get_clean();
+    }
+
+    /** Réponse commune aux actions de gestion des listes (succès, AJAX ou redirect classique). */
+    private function respondListsSuccess(string $message): void
+    {
+        $listRepo      = new ListRepository();
+        $lists         = $listRepo->findAllWithCount();
+        $defaultListId = $listRepo->findDefault();
+
+        if ($this->isAjax()) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'ok'      => true,
+                'message' => $message,
+                'count'   => count($lists),
+                'html'    => $this->renderPartial('admin/_lists_rows', [
+                    'lists'         => $lists,
+                    'defaultListId' => $defaultListId,
+                    'csrf'          => Csrf::token(),
+                ]),
+            ]);
+            exit;
+        }
+
+        Flash::set('success', $message);
+        Response::redirect('?action=admin_lists');
     }
 
     public function index(): void
@@ -469,8 +520,7 @@ final class AdminController
         }
 
         $repo->create($name);
-        Flash::set('success', 'Liste créée.');
-        Response::redirect('?action=admin_lists');
+        $this->respondListsSuccess('Liste créée.');
     }
 
     public function listRename(): void
@@ -492,8 +542,7 @@ final class AdminController
         }
 
         $repo->rename($id, $name);
-        Flash::set('success', 'Liste renommée.');
-        Response::redirect('?action=admin_lists');
+        $this->respondListsSuccess('Liste renommée.');
     }
 
     public function listSetDefault(): void
@@ -511,17 +560,17 @@ final class AdminController
         // Si la liste est déjà la liste par défaut, on la retire
         if ($repo->findDefault() === $id) {
             $repo->clearDefault();
-            Flash::set('success', 'Liste par défaut retirée.');
+            $message = 'Liste par défaut retirée.';
         } else {
             $repo->setDefault($id);
-            Flash::set('success', 'Liste par défaut définie.');
+            $message = 'Liste par défaut définie.';
         }
 
         // Invalider la liste mémorisée en session pour que la page bookmarks
         // reflète immédiatement la nouvelle liste par défaut
         unset($_SESSION['ktstart_list']);
 
-        Response::redirect('?action=admin_lists');
+        $this->respondListsSuccess($message);
     }
 
     public function listDelete(): void
@@ -537,8 +586,7 @@ final class AdminController
         }
 
         $repo->delete($id);
-        Flash::set('success', 'Liste supprimée.');
-        Response::redirect('?action=admin_lists');
+        $this->respondListsSuccess('Liste supprimée.');
     }
 
     // ── Dossiers ─────────────────────────────────────────────────────────────
